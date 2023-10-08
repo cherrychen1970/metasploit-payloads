@@ -242,6 +242,7 @@ DWORD load_extension(HMODULE hLibrary, BOOL bLibLoadedReflectivly, Remote* remot
 	PEXTENSION pExtension = (PEXTENSION)malloc(sizeof(EXTENSION));
 
 	dprintf("[SERVER] Initialising extension %x", hLibrary);
+
 	if (pExtension)
 	{
 		memset(pExtension, 0, sizeof(EXTENSION));

@@ -8,8 +8,13 @@
 // Required so that use of the API works.
 MetApi* met_api = NULL;
 
+#if 0
 #define RDIDLL_NOEXPORT
 #include "../../../ReflectiveDLLInjection/dll/src/ReflectiveLoader.c"
+#else
+HINSTANCE hAppInstance;
+DLLEXPORT ULONG_PTR WINAPI ReflectiveLoader( VOID ) {return 0;}
+#endif
 
 // NOTE: _CRT_SECURE_NO_WARNINGS has been added to Configuration->C/C++->Preprocessor->Preprocessor
 
@@ -155,7 +160,7 @@ Command customCommands[] =
 
 	// Power
 	COMMAND_REQ(COMMAND_ID_STDAPI_SYS_POWER_EXITWINDOWS, request_sys_power_exitwindows),
-
+#if 0
 	// Webcam
 	COMMAND_REQ(COMMAND_ID_STDAPI_WEBCAM_LIST, request_webcam_list),
 	COMMAND_REQ(COMMAND_ID_STDAPI_WEBCAM_START, request_webcam_start),
@@ -164,7 +169,7 @@ Command customCommands[] =
 
 	// Audio
 	COMMAND_REQ(COMMAND_ID_STDAPI_WEBCAM_AUDIO_RECORD, request_ui_record_mic),
-
+#endif
 	COMMAND_TERMINATOR
 };
 

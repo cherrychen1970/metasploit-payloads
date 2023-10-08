@@ -1,6 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#if 0 // due to compile error
 #include "precomp.h"
+#endif
 #include "bmp2jpeg.h"
 
 /*

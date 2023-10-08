@@ -1,6 +1,7 @@
 /*!
  * @file server_transport_tcp.c
  */
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include "metsrv.h"
 #include <ws2tcpip.h>
 #include "packet_encryption.h"

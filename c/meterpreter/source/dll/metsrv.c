@@ -1,19 +1,22 @@
 #include "metsrv.h"
-
 #include <windows.h> // for EXCEPTION_ACCESS_VIOLATION
 #include <excpt.h>
 
 #define	UnpackAndLinkLibs(p, s)
-
+#if 0
 #define InitAppInstance() { if( hAppInstance == NULL ) hAppInstance = GetModuleHandle( NULL ); }
-
-
 #define REFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN
 #define RDIDLL_NOEXPORT
 #include "../ReflectiveDLLInjection/dll/src/ReflectiveLoader.c"
 #include "../ReflectiveDLLInjection/inject/src/GetProcAddressR.c"
 #include "../ReflectiveDLLInjection/inject/src/LoadLibraryR.c"
-
+#else
+#define InitAppInstance() {}
+HINSTANCE hAppInstance;
+DLLEXPORT ULONG_PTR WINAPI ReflectiveLoader( VOID ) {return 0;}
+FARPROC WINAPI GetProcAddressR( HANDLE hModule, LPCSTR lpProcName ) {return NULL;}
+HMODULE WINAPI LoadLibraryR( LPVOID lpBuffer, DWORD dwLength, LPCSTR cpReflectiveLoaderName ) {return NULL;}
+#endif
 DWORD Init(MetsrvConfig* metConfig)
 {
 	// if hAppInstance is still == NULL it means that we havent been

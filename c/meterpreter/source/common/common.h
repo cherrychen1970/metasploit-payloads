@@ -110,7 +110,11 @@ static _inline void real_dprintf(char *format, ...)
 	va_start(args, format);
 	vsnprintf_s(buffer + len, sizeof(buffer)-len, sizeof(buffer)-len - 3, format, args);
 	strcat_s(buffer, sizeof(buffer), "\r\n");
+#if 0
 	OutputDebugStringA(buffer);
+#else
+	printf(buffer);
+#endif
 	va_end(args);
 }
 

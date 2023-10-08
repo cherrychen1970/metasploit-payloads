@@ -23,15 +23,33 @@ include_directories(../../source/jpeg-8)
 include_directories(../../source/ReflectiveDLLInjection/common)
 include_directories(../../source/extensions/stdapi/server)
 
-set(SRC_DIR ../../source/extensions/stdapi)
-file(GLOB_RECURSE SRC_FILES
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../jpeg/build)
+
+set(SRC_DIR ../../source/extensions/stdapi/server)
+set(MOD_DEF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../source/def)
+
+#GLOB_RECURSE
+file(GLOB SRC_FILES
     ${SRC_DIR}/*.c
-    ${SRC_DIR}/*.cpp
-    ${SRC_DIR}/*.rc
+    ${SRC_DIR}/audio/*.c
+    ${SRC_DIR}/fs/*.c
+    ${SRC_DIR}/net/*.c
+    ${SRC_DIR}/net/config/*.c
+    ${SRC_DIR}/net/socket/*.c
+    ${SRC_DIR}/railgun/*.c
+    ${SRC_DIR}/resource/*.c
+    ${SRC_DIR}/resource/*.rc
+    ${SRC_DIR}/sys/*.c
+    ${SRC_DIR}/sys/config/*.c
+    ${SRC_DIR}/sys/eventlog/*.c
+    ${SRC_DIR}/sys/power/*.c
+    ${SRC_DIR}/sys/process/*.c
+    ${SRC_DIR}/sys/registry/*.c
+    ${SRC_DIR}/ui/*.c
     ${MOD_DEF_DIR}/extension.def
 )
 
-list(REMOVE_ITEM SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/${SRC_DIR}/server/resource/hook.c)
+#list(REMOVE_ITEM SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/${SRC_DIR}/resource/hook.c)
 
 add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME}.${TARGET_ARCH})

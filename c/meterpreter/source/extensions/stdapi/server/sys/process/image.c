@@ -2,9 +2,9 @@
 #include "common_metapi.h"
 
 DWORD remote_load_library(HANDLE process, LPCSTR image,
-		HMODULE *base);
+						  HMODULE *base);
 DWORD remote_get_proc_address(HANDLE process, HMODULE module,
-		LPCSTR symbol, LPVOID *address);
+							  LPCSTR symbol, LPVOID *address);
 DWORD remote_unload_library(HANDLE process, HMODULE base);
 
 /*
@@ -23,13 +23,13 @@ DWORD request_sys_process_image_load(Remote *remote, Packet *packet)
 	HMODULE base;
 
 	handle = (HANDLE)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_HANDLE);
-	image  = met_api->packet.get_tlv_value_string(packet, TLV_TYPE_IMAGE_FILE_PATH);
+	image = met_api->packet.get_tlv_value_string(packet, TLV_TYPE_IMAGE_FILE_PATH);
 
 	do
 	{
 		// Validate parameters
 		if ((!handle) ||
-		    (!image))
+			(!image))
 		{
 			result = ERROR_INVALID_PARAMETER;
 			break;
@@ -78,15 +78,15 @@ DWORD request_sys_process_image_get_proc_address(Remote *remote, Packet *packet)
 	LPCSTR procedure;
 	LPVOID address = NULL;
 
-	process   = (HANDLE)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_HANDLE);
-	image     = met_api->packet.get_tlv_value_string(packet, TLV_TYPE_IMAGE_FILE);
+	process = (HANDLE)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_HANDLE);
+	image = met_api->packet.get_tlv_value_string(packet, TLV_TYPE_IMAGE_FILE);
 	procedure = met_api->packet.get_tlv_value_string(packet, TLV_TYPE_PROCEDURE_NAME);
 
 	do
 	{
 		// Validate parameters
 		if ((!image) ||
-		    (!procedure))
+			(!procedure))
 		{
 			result = ERROR_INVALID_PARAMETER;
 			break;
@@ -95,12 +95,12 @@ DWORD request_sys_process_image_get_proc_address(Remote *remote, Packet *packet)
 		// If the process handle is not this process...
 		if (process != GetCurrentProcess())
 		{
-			if ((result = remote_load_library(process, image, 
-					&mod)) != ERROR_SUCCESS)
+			if ((result = remote_load_library(process, image,
+											  &mod)) != ERROR_SUCCESS)
 				break;
-			
+
 			if ((result = remote_get_proc_address(process, mod, procedure,
-					&address)) != ERROR_SUCCESS)
+												  &address)) != ERROR_SUCCESS)
 				break;
 		}
 		// Otherwise, load the library locally
@@ -129,7 +129,7 @@ DWORD request_sys_process_image_get_proc_address(Remote *remote, Packet *packet)
 
 	// Lose the reference to the module
 	if ((mod) &&
-	    (unload))
+		(unload))
 		FreeLibrary(mod);
 	else if (mod)
 		remote_unload_library(process, mod);
@@ -154,13 +154,13 @@ DWORD request_sys_process_image_unload(Remote *remote, Packet *packet)
 	DWORD result = ERROR_SUCCESS;
 
 	handle = (HANDLE)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_HANDLE);
-	base   = (LPVOID)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_IMAGE_BASE);
+	base = (LPVOID)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_IMAGE_BASE);
 
 	do
 	{
 		// Validate parameters
 		if ((!handle) ||
-		    (!base))
+			(!base))
 		{
 			result = ERROR_INVALID_PARAMETER;
 			break;
@@ -183,9 +183,9 @@ DWORD request_sys_process_image_unload(Remote *remote, Packet *packet)
 	return ERROR_SUCCESS;
 }
 
-typedef BOOL (WINAPI *PEnumProcessModules)(HANDLE p, HMODULE *mod, DWORD cb, LPDWORD needed);
-typedef DWORD (WINAPI *PGetModuleBaseName)(HANDLE p, HMODULE mod, LPTSTR base, DWORD baseSize);
-typedef DWORD (WINAPI *PGetModuleFileNameEx)(HANDLE p, HMODULE mod, LPTSTR path, DWORD pathSize);
+typedef BOOL(WINAPI *PEnumProcessModules)(HANDLE p, HMODULE *mod, DWORD cb, LPDWORD needed);
+typedef DWORD(WINAPI *PGetModuleBaseName)(HANDLE p, HMODULE mod, LPTSTR base, DWORD baseSize);
+typedef DWORD(WINAPI *PGetModuleFileNameEx)(HANDLE p, HMODULE mod, LPTSTR path, DWORD pathSize);
 
 /*
  * Returns a list of all of the loaded image files and their base addresses to
@@ -214,7 +214,7 @@ DWORD request_sys_process_image_get_images(Remote *remote, Packet *packet)
 		// No response?  No sense.
 		if (!response)
 			break;
-		
+
 		// Open the process API
 		if (!(psapi = LoadLibrary("psapi")))
 		{
@@ -267,7 +267,7 @@ DWORD request_sys_process_image_get_images(Remote *remote, Packet *packet)
 			}
 
 		} while ((actual < needed) &&
-		         (tries++ < 3));
+				 (tries++ < 3));
 
 		// If we failed to succeed...
 		if (!valid)
@@ -278,21 +278,21 @@ DWORD request_sys_process_image_get_images(Remote *remote, Packet *packet)
 
 		// Enumerate through all of the modules...
 		for (index = 0;
-		     index < needed / sizeof(HMODULE);
-		     index++)
+			 index < needed / sizeof(HMODULE);
+			 index++)
 		{
-			char  path[1024], name[512];
+			char path[1024], name[512];
 			DWORD base = 0;
-			Tlv   tlvs[3];
+			Tlv tlvs[3];
 
 			memset(name, 0, sizeof(name));
 			memset(path, 0, sizeof(path));
 
 			// Query for base name and file name
 			if ((!getModuleBaseName(handle, modules[index], name,
-					sizeof(name) - 1)) ||
-			    (!getModuleFileNameEx(handle, modules[index], path,
-					sizeof(path) - 1)))
+									sizeof(name) - 1)) ||
+				(!getModuleFileNameEx(handle, modules[index], path,
+									  sizeof(path) - 1)))
 			{
 				result = GetLastError();
 				break;
@@ -301,14 +301,14 @@ DWORD request_sys_process_image_get_images(Remote *remote, Packet *packet)
 			base = htonl((DWORD)modules[index]);
 
 			tlvs[0].header.length = sizeof(HMODULE);
-			tlvs[0].header.type   = TLV_TYPE_IMAGE_BASE;
-			tlvs[0].buffer        = (PUCHAR)&base;
+			tlvs[0].header.type = TLV_TYPE_IMAGE_BASE;
+			tlvs[0].buffer = (PUCHAR)&base;
 			tlvs[1].header.length = (DWORD)strlen(path) + 1;
-			tlvs[1].header.type   = TLV_TYPE_IMAGE_FILE_PATH;
-			tlvs[1].buffer        = (PUCHAR)path;
+			tlvs[1].header.type = TLV_TYPE_IMAGE_FILE_PATH;
+			tlvs[1].buffer = (PUCHAR)path;
 			tlvs[2].header.length = (DWORD)strlen(name) + 1;
-			tlvs[2].header.type   = TLV_TYPE_IMAGE_NAME;
-			tlvs[2].buffer        = (PUCHAR)name;
+			tlvs[2].header.type = TLV_TYPE_IMAGE_NAME;
+			tlvs[2].buffer = (PUCHAR)name;
 
 			met_api->packet.add_tlv_group(response, TLV_TYPE_IMAGE_GROUP, tlvs, 3);
 		}
@@ -335,19 +335,19 @@ DWORD request_sys_process_image_get_images(Remote *remote, Packet *packet)
 typedef struct _LoadLibraryContext
 {
 	LPVOID loadLibraryAddress;
-	CHAR   imagePath[1];
+	CHAR imagePath[1];
 } LoadLibraryContext;
 
 typedef struct _GetProcAddressContext
 {
-	LPVOID  getProcAddress;
+	LPVOID getProcAddress;
 	HMODULE module;
-	CHAR    symbol[1];
+	CHAR symbol[1];
 } GetProcAddressContext;
 
 typedef struct _UnloadLibraryContext
 {
-	LPVOID  freeLibraryAddress;
+	LPVOID freeLibraryAddress;
 	HMODULE module;
 } UnloadLibraryContext;
 
@@ -360,13 +360,16 @@ DWORD remote_load_library(HANDLE process, LPCSTR image, HMODULE *base)
 	DWORD result = ERROR_SUCCESS;
 	DWORD contextSize = 0;
 	DWORD imagePathSize = 0;
+#if 0
 	BYTE loadLibraryStub[] =
-		"\x8b\x54\x24\x04"  // see load_library_stub
+		"\x8b\x54\x24\x04" // see load_library_stub
 		"\x8d\x5a\x04"
 		"\x53"
 		"\xff\x12"
 		"\xc2\x04\x00";
-
+#else
+	BYTE loadLibraryStub[] = "\x00";
+#endif
 	do
 	{
 		// Calculate the size of the context we'll be passing
@@ -381,14 +384,14 @@ DWORD remote_load_library(HANDLE process, LPCSTR image, HMODULE *base)
 
 		// Initialize the context
 		context->loadLibraryAddress = (PVOID)GetProcAddress(
-				GetModuleHandle("kernel32"), "LoadLibraryA");
+			GetModuleHandle("kernel32"), "LoadLibraryA");
 
 		strcpy_s(context->imagePath, imagePathSize, image);
 
 		// Execute the LoadLibraryA stub
-		result = execute_code_stub_in_process(process, (PVOID)loadLibraryStub, 
-				sizeof(loadLibraryStub) - 1, context, contextSize, 
-				(LPDWORD)base);	
+		result = execute_code_stub_in_process(process, (PVOID)loadLibraryStub,
+											  sizeof(loadLibraryStub) - 1, context, contextSize,
+											  (LPDWORD)base);
 
 	} while (0);
 
@@ -403,12 +406,13 @@ DWORD remote_load_library(HANDLE process, LPCSTR image, HMODULE *base)
  * process
  */
 DWORD remote_get_proc_address(HANDLE process, HMODULE module,
-		LPCSTR symbol, LPVOID *address)
+							  LPCSTR symbol, LPVOID *address)
 {
 	GetProcAddressContext *context = NULL;
 	DWORD result = ERROR_SUCCESS;
 	DWORD contextSize = 0;
 	DWORD symbolSize = 0;
+#if 0
 	BYTE getProcAddressStub[] =
 		"\x8b\x54\x24\x04"  // see unload_library_stub
 		"\x8b\x5a\x04"
@@ -417,7 +421,9 @@ DWORD remote_get_proc_address(HANDLE process, HMODULE module,
 		"\x53"
 		"\xff\x12"
 		"\xc2\x04\x00";
-
+#else
+	BYTE getProcAddressStub[] = "\x00";
+#endif
 	do
 	{
 		// Calculate the size of the context we'll be passing
@@ -432,15 +438,15 @@ DWORD remote_get_proc_address(HANDLE process, HMODULE module,
 
 		// Initialize the context
 		context->getProcAddress = (PVOID)GetProcAddress(
-				GetModuleHandle("kernel32"), "GetProcAddress");
+			GetModuleHandle("kernel32"), "GetProcAddress");
 		context->module = module;
 
 		strcpy_s(context->symbol, symbolSize, symbol);
 
 		// Execute the LoadLibraryA stub
 		result = execute_code_stub_in_process(process, (PVOID)getProcAddressStub,
-				sizeof(getProcAddressStub) - 1, context, contextSize, 
-				(LPDWORD)address);
+											  sizeof(getProcAddressStub) - 1, context, contextSize,
+											  (LPDWORD)address);
 
 	} while (0);
 
@@ -457,24 +463,27 @@ DWORD remote_unload_library(HANDLE process, HMODULE base)
 {
 	UnloadLibraryContext context;
 	DWORD result = ERROR_SUCCESS;
+#if 0
 	BYTE unloadLibraryStub[] =
-		"\x8b\x54\x24\x04"  // see unload_library_stub
+		"\x8b\x54\x24\x04" // see unload_library_stub
 		"\xff\x72\x04"
 		"\xff\x12"
 		"\xc2\x04\x00";
-
+#else
+	BYTE unloadLibraryStub[] = "\x00";
+#endif
 	do
 	{
 		// Initialize the context
 		context.freeLibraryAddress = (PVOID)GetProcAddress(
-				GetModuleHandle("kernel32"), "FreeLibrary");
+			GetModuleHandle("kernel32"), "FreeLibrary");
 
 		context.module = base;
 
 		// Execute the FreeLibrary stub
-		result = execute_code_stub_in_process(process, (PVOID)unloadLibraryStub, 
-				sizeof(unloadLibraryStub) - 1, &context, sizeof(context),
-				NULL);
+		result = execute_code_stub_in_process(process, (PVOID)unloadLibraryStub,
+											  sizeof(unloadLibraryStub) - 1, &context, sizeof(context),
+											  NULL);
 
 	} while (0);
 

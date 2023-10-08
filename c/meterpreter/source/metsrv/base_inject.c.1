@@ -342,10 +342,11 @@ DWORD inject_via_remotethread_wow64( HANDLE hProcess, LPVOID lpStartAddress, LPV
 	EXECUTEX64 pExecuteX64   = NULL;
 	X64FUNCTION pX64function = NULL;
 	WOW64CONTEXT * ctx       = NULL;
-	OSVERSIONINFO os         = {0};
+	//OSVERSIONINFO os         = {0};
 
 	do
 	{
+		#if 0
 		os.dwOSVersionInfoSize = sizeof( OSVERSIONINFO );
 
 		if( !GetVersionEx( &os ) )
@@ -357,6 +358,7 @@ DWORD inject_via_remotethread_wow64( HANDLE hProcess, LPVOID lpStartAddress, LPV
 			SetLastError( ERROR_ACCESS_DENIED );
 			BREAK_ON_ERROR( "[INJECT] inject_via_remotethread_wow64: Windows 2003 not supported." )
 		}
+		#endif
 
 		// alloc a RWX buffer in this process for the EXECUTEX64 function
 		pExecuteX64 = (EXECUTEX64)VirtualAlloc( NULL, sizeof(migrate_executex64), MEM_RESERVE|MEM_COMMIT, PAGE_EXECUTE_READWRITE );

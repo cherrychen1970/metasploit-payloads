@@ -19,6 +19,8 @@ include_directories(../../source/common)
 include_directories(../../source/ReflectiveDLLInjection/common)
 
 set(SRC_DIR ../../source/metsrv)
+set(MOD_DEF_DIR ../../../source/def)
+
 file(GLOB SRC_FILES
     ${SRC_DIR}/*.c
     ${MOD_DEF_DIR}/metsrv.def

