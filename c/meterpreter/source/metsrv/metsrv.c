@@ -2,16 +2,9 @@
 #include <excpt.h>
 #include <time.h>
 
-DWORD server_setup_default();
-
 ULONG_PTR WINAPI ReflectiveLoader( VOID ) {return 0;}
 FARPROC WINAPI GetProcAddressR( HANDLE hModule, LPCSTR lpProcName ) {return NULL;}
 HMODULE WINAPI LoadLibraryR( LPVOID lpBuffer, DWORD dwLength, LPCSTR cpReflectiveLoaderName ) {return NULL;}
-
-int main()
-{
-	server_setup_default();
-}
 
 #define SLEEP_MAX_SEC (MAXDWORD / 1000)
 

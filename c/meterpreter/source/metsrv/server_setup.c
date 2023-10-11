@@ -323,6 +323,7 @@ DWORD server_setup_default_1()
 // for simple connection without config.
 DWORD server_setup_default()
 {
+	printf("hello\n");
 	THREAD *serverThread = NULL;
 	Remote *remote = NULL;
 	char stationName[256] = {0};
@@ -390,7 +391,9 @@ DWORD server_setup_default()
 			register_dispatch_routines();
 
 #if 1
-			HMODULE hLibrary = LoadLibraryA("ext_server_stdapi.x64.dll");
+			HMODULE hLibrary = LoadLibraryA("stdapi\\ext_server_stdapi.x64.dll");
+			dprintf("%x",hLibrary);
+			getchar();
 			load_extension(hLibrary, FALSE, remote, NULL, extensionCommands);
 #endif
 
