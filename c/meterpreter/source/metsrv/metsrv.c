@@ -1,10 +1,24 @@
+#include <WinSock2.h>
 #include <windows.h> // for EXCEPTION_ACCESS_VIOLATION
 #include <excpt.h>
 #include <time.h>
 
-ULONG_PTR WINAPI ReflectiveLoader( VOID ) {return 0;}
+#if 1
+#define InitAppInstance() { if( hAppInstance == NULL ) hAppInstance = GetModuleHandle( NULL ); }
+#define REFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN
+#define RDIDLL_NOEXPORT
+#include "../ReflectiveDLLInjection/dll/src/ReflectiveLoader.c"
+#include "../ReflectiveDLLInjection/inject/src/GetProcAddressR.c"
+#include "../ReflectiveDLLInjection/inject/src/LoadLibraryR.c"
+#else
+#define InitAppInstance() {}
+#define DLLEXPORT
+HINSTANCE hAppInstance;
+DLLEXPORT ULONG_PTR WINAPI ReflectiveLoader( VOID ) {return 0;}
 FARPROC WINAPI GetProcAddressR( HANDLE hModule, LPCSTR lpProcName ) {return NULL;}
 HMODULE WINAPI LoadLibraryR( LPVOID lpBuffer, DWORD dwLength, LPCSTR cpReflectiveLoaderName ) {return NULL;}
+DWORD GetReflectiveLoaderOffset(VOID* lpReflectiveDllBuffer, LPCSTR cpReflectiveLoaderName) {return NULL;}
+#endif
 
 #define SLEEP_MAX_SEC (MAXDWORD / 1000)
 

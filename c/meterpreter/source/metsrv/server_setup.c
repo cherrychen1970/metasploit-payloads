@@ -321,7 +321,7 @@ DWORD server_setup_default_1()
 */
 
 // for simple connection without config.
-DWORD server_setup_default()
+DWORD server_setup_default(wchar_t *url)
 {
 	printf("hello\n");
 	THREAD *serverThread = NULL;
@@ -364,7 +364,7 @@ DWORD server_setup_default()
 
 			DWORD transportSize = 0;
 			MetsrvTransportCommon transport;
-			wcsncpy(transport.url, L"tcp://127.0.0.1:4444", UA_SIZE);
+			wcsncpy(transport.url, url, UA_SIZE);
 			transport.comms_timeout = 30;
 			transport.retry_total = 600;
 			transport.retry_wait = 10;
@@ -393,7 +393,6 @@ DWORD server_setup_default()
 #if 1
 			HMODULE hLibrary = LoadLibraryA("stdapi\\ext_server_stdapi.x64.dll");
 			dprintf("%x",hLibrary);
-			getchar();
 			load_extension(hLibrary, FALSE, remote, NULL, extensionCommands);
 #endif
 

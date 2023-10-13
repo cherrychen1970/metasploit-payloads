@@ -28,15 +28,17 @@ file(GLOB SRC_FILES
     ${SRC_DIR}/*.c
 #    ${MOD_DEF_DIR}/metsrv.def
 )
-add_library(${PROJECT_NAME} ${SRC_FILES})
+add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
+add_library(${PROJECT_NAME}_static ${SRC_FILES})
+
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME}.${TARGET_ARCH})
 
 if(MSVC)
-    # set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/DEF:\"${MOD_DEF_DIR}/metsrv.def\"")
-    # set_source_files_properties(${MOD_DEF_DIR}/metsrv.def PROPERTIES HEADER_FILE_ONLY TRUE)
+#    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/DEF:\"${MOD_DEF_DIR}/metsrv.def\"")
+#    set_source_files_properties(${MOD_DEF_DIR}/metsrv.def PROPERTIES HEADER_FILE_ONLY TRUE)
 endif()
 
-set(LINK_LIBS winhttp wininet crypt32)
+set(LINK_LIBS winhttp wininet crypt32 ws2_32)
 
 if(MSVC)
     target_link_options(${PROJECT_NAME} PUBLIC "/ignore:4070")
@@ -45,7 +47,7 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME} ${LINK_LIBS})
-
+target_link_libraries(${PROJECT_NAME}_static ${LINK_LIBS})
 # Post processing (required for all Meterpreter DLLs)
 # editbin(${PROJECT_NAME} ${BIN_SUBSYSTEM})
 # copyoutput(${PROJECT_NAME} ${BIN_OUTPUT_DIR})
