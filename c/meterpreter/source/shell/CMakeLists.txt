@@ -1,0 +1,38 @@
+cmake_minimum_required (VERSION 3.8)
+
+# Enable Hot Reload for MSVC compilers if supported.
+if (POLICY CMP0141)
+  cmake_policy(SET CMP0141 NEW)
+  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+endif()
+
+set(PROJECT_NAME wlbsctrl)
+
+project(${PROJECT_NAME})
+
+#https://learn.microsoft.com/en-us/cpp/build/reference/zc-externc?view=msvc-170
+#/Zc:externC
+
+# set(CMAKE_CXX_COMPILER "clang-cl.exe")
+
+set(CMAKE_CXX_FLAGS "/Gd")
+
+file(GLOB SRC_FILES
+    ./shell2.cpp
+    ./dllmain2
+    .cpp
+)
+
+file(GLOB EXE_SRC
+    main.c
+)
+
+add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
+
+add_executable(loader ${EXE_SRC})
+
+target_link_libraries(${PROJECT_NAME} ws2_32 )
+
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
+endif()
