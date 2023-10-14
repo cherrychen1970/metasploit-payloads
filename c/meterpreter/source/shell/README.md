@@ -19,3 +19,7 @@ set TARGET=172.16.65.129
 copy build\test.dll \\172.16.65.129\c$\windows\system32
 
 copy build\metsrv\metsrv.x64.dll \\172.16.65.129\c$\windows\system32\wlbsctrl.dll
+
+copy build\metsrv\metsrv.x64.dll \\172.16.65.129\c$\test\metsrv.x64.dll
+
+copy build\test.dll \\172.16.65.129\c$\test\test.dll

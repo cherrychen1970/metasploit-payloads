@@ -2,6 +2,8 @@
 
 int main()
 {
-	LoadLibraryA("metsrv\\metsrv.x64.dll");
-	Sleep(-1);
+	HANDLE h = LoadLibraryA("metsrv.x64.dll");
+	if (!h)
+		LoadLibraryA("metsrv\\metsrv.x64.dll");
+	getchar();
 }
