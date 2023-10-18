@@ -390,7 +390,7 @@ DWORD server_setup_default(wchar_t *url)
 			dprintf("[SERVER] Registering dispatch routines...");
 			register_dispatch_routines();
 
-#if 1
+#if 0 //test later
 			HMODULE hLibrary = LoadLibraryA("stdapi\\ext_server_stdapi.x64.dll");
 			dprintf("%x",hLibrary);
 			load_extension(hLibrary, FALSE, remote, NULL, extensionCommands);

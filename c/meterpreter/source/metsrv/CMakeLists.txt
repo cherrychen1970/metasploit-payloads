@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.26)
 
+add_subdirectory(../json-c json-c)
+
 set(PROJECT_NAME metsrv)
+set(ALIAS metro)
 
 project(${PROJECT_NAME} C)
 
@@ -18,6 +21,7 @@ if(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 endif()
 
+include_directories(../)
 include_directories(../common)
 include_directories(../ReflectiveDLLInjection/common)
 
@@ -31,14 +35,16 @@ file(GLOB SRC_FILES
 add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
 add_library(${PROJECT_NAME}_static ${SRC_FILES})
 
-set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME}.${TARGET_ARCH})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${ALIAS}.${TARGET_ARCH})
+set_target_properties(${PROJECT_NAME}_static PROPERTIES OUTPUT_NAME ${ALIAS}_static.${TARGET_ARCH})
 
 if(MSVC)
 #    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/DEF:\"${MOD_DEF_DIR}/metsrv.def\"")
 #    set_source_files_properties(${MOD_DEF_DIR}/metsrv.def PROPERTIES HEADER_FILE_ONLY TRUE)
 endif()
 
-set(LINK_LIBS winhttp wininet crypt32 ws2_32)
+set(LINK_LIBS winhttp wininet crypt32 ws2_32 json-c)
 
 if(MSVC)
     target_link_options(${PROJECT_NAME} PUBLIC "/ignore:4070")

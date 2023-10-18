@@ -37,7 +37,7 @@ else()
     set(LINK_LIBS ${LINK_LIBS} ws2_32)
 endif()
 
-target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} metsrv ext_server_stdapi)
+target_link_libraries(${PROJECT_NAME} ${LINK_LIBS})
 
 add_custom_target(run
     COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.${TARGET_ARCH}.exe

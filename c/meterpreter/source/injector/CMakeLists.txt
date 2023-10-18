@@ -36,7 +36,7 @@ set_target_properties(test PROPERTIES LINK_FLAGS "/DEF:\"../def/plugin.def\"")
 
 add_executable(${PROJECT_NAME} main.c)
 
-target_link_libraries(${PROJECT_NAME} metsrv ext_server_stdapi)
+target_link_libraries(${PROJECT_NAME})
 
 add_custom_target(run
     COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.${TARGET_ARCH}.exe
