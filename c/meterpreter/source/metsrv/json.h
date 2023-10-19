@@ -22,6 +22,8 @@ struct json_object * json_read_buf(const void *buf, size_t buf_len);
 
 struct json_object *json_read_bufferev(struct bufferev *bev, struct json_tokener *tok);
 
+const char *json_to_string(json_object *obj);
+
 #if 0
 typedef void (*json_read_cb)(struct json_object *obj, void *arg);
 

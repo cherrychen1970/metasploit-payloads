@@ -18,7 +18,7 @@ add_definitions(
 )
 
 if(MSVC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /we 4013 /MP")
 endif()
 
 include_directories(../)
@@ -32,12 +32,17 @@ file(GLOB SRC_FILES
     ${SRC_DIR}/*.c
 #    ${MOD_DEF_DIR}/metsrv.def
 )
-add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
-add_library(${PROJECT_NAME}_static ${SRC_FILES})
 
+list(REMOVE_ITEM SRC_FILES ${SRC_DIR}/dllmain.c)
+list(REMOVE_ITEM SRC_FILES ${SRC_DIR}/main.c)
+
+add_library(${PROJECT_NAME} SHARED ${SRC_FILES}  ${SRC_DIR}/dllmain.c )
+add_library(${PROJECT_NAME}_static ${SRC_FILES})
+add_executable(${PROJECT_NAME}_exe ${SRC_FILES} ${SRC_DIR}/main.c)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${ALIAS}.${TARGET_ARCH})
 set_target_properties(${PROJECT_NAME}_static PROPERTIES OUTPUT_NAME ${ALIAS}_static.${TARGET_ARCH})
+set_target_properties(${PROJECT_NAME}_exe PROPERTIES OUTPUT_NAME ${ALIAS})
 
 if(MSVC)
 #    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/DEF:\"${MOD_DEF_DIR}/metsrv.def\"")
@@ -47,13 +52,18 @@ endif()
 set(LINK_LIBS winhttp wininet crypt32 ws2_32 json-c)
 
 if(MSVC)
-    target_link_options(${PROJECT_NAME} PUBLIC "/ignore:4070")
-else()
-    set(LINK_LIBS ${LINK_LIBS} ws2_32)
+#    target_link_options(${PROJECT_NAME} PUBLIC "/ignore:4070")
 endif()
 
 target_link_libraries(${PROJECT_NAME} ${LINK_LIBS})
 target_link_libraries(${PROJECT_NAME}_static ${LINK_LIBS})
+target_link_libraries(${PROJECT_NAME}_exe ${LINK_LIBS})
+
+add_custom_target(run
+    COMMAND ${CMAKE_BINARY_DIR}/${ALIAS}.exe
+    USES_TERMINAL
+)
+
 # Post processing (required for all Meterpreter DLLs)
 # editbin(${PROJECT_NAME} ${BIN_SUBSYSTEM})
 # copyoutput(${PROJECT_NAME} ${BIN_OUTPUT_DIR})

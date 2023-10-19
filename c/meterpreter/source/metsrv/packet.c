@@ -8,7 +8,10 @@
 #include "metsrv.h"
 #include "common_exports.h"
 #include "packet_encryption.h"
+#include "json.h"
 #include <winhttp.h>
+
+#define PRINT_LINE dprintf("%d", __LINE__)
 
 DWORD packet_find_tlv_buf(Packet *packet, PUCHAR payload, DWORD payloadLength, DWORD index, TlvType type, Tlv *tlv);
 
@@ -56,11 +59,12 @@ Packet *packet_create(PacketTlvType type, UINT commandId)
         packet->payload = NULL;
         packet->payloadLength = 0;
 
+        packet->handle = json_object_new_object();
+
         if (commandId > 0 && packet_add_tlv_uint(packet, TLV_TYPE_COMMAND_ID, commandId) != ERROR_SUCCESS)
         {
             break;
         }
-
         success = TRUE;
 
     } while (0);
@@ -83,6 +87,33 @@ Packet *packet_create(PacketTlvType type, UINT commandId)
  *          sending the packet to the client.
  */
 Packet *packet_create_group()
+{
+    Packet *packet = NULL;
+    do
+    {
+        if (!(packet = (Packet *)malloc(sizeof(Packet))))
+        {
+            break;
+        }
+
+        memset(packet, 0, sizeof(Packet));
+
+        // we don't need to worry about the TLV header at this point
+        // so we'll ignore it
+
+        // Initialize the payload to be blank
+        packet->payload = NULL;
+        packet->payloadLength = 0;
+
+        return packet;
+    } while (0);
+
+    SAFE_FREE(packet);
+
+    return NULL;
+}
+
+Packet *packet_create_empty()
 {
     Packet *packet = NULL;
     do
@@ -525,6 +556,32 @@ DWORD packet_add_tlv_raw_compressed(Packet *packet, TlvType type, LPVOID buf, DW
  */
 DWORD packet_add_tlv_raw(Packet *packet, TlvType type, LPVOID buf, DWORD length)
 {
+    TlvMetaType metaType = TLV_META_TYPE_MASK(type);
+    char key[4];
+    _itoa(type, key, 16);
+
+    switch (metaType)
+    {
+    case TLV_META_TYPE_STRING:
+        json_add_str(packet->handle, key, buf);
+        return ERROR_SUCCESS;
+    case TLV_META_TYPE_UINT:
+        if (json_add_int32(packet->handle, key, *(UINT32 *)buf) == -1)
+            return ERROR_NOT_FOUND;
+        return ERROR_SUCCESS;
+    case TLV_META_TYPE_BOOL:
+        if (json_add_bool(packet->handle, key, *(BOOL *)buf) == -1)
+            return ERROR_NOT_FOUND;
+        return ERROR_SUCCESS;
+    case TLV_META_TYPE_RAW:
+        // not supported
+        return ERROR_NOT_FOUND;
+    }
+    return ERROR_NOT_FOUND;
+}
+
+DWORD packet_add_tlv_raw_notused(Packet *packet, TlvType type, LPVOID buf, DWORD length)
+{
     DWORD headerLength = sizeof(TlvHeader);
     DWORD realLength = length + headerLength;
     DWORD newPayloadLength = packet->payloadLength + realLength;
@@ -618,27 +675,32 @@ DWORD packet_get_tlv(Packet *packet, TlvType type, Tlv *tlv)
 {
     TlvMetaType metaType = TLV_META_TYPE_MASK(type);
     char key[4];
-    itoa(type, key, 16);
+    _itoa(type, key, 16);
+    tlv->header.type = type;
 
     switch (metaType)
     {
     case TLV_META_TYPE_STRING:
-        json_get_str(packet->payload, key, tlv->buffer);
-        tlv->header.type = type;
+        json_get_str(packet->handle, key, &tlv->buffer);
         tlv->header.length = strlen(tlv->buffer);
         return ERROR_SUCCESS;
     case TLV_META_TYPE_UINT:
-        if (json_get_int32(packet->payload, key, &tlv->buffer) == -1)
-            return FALSE;
-        return TRUE;
+        if (json_get_int32(packet->handle, key, &tlv->buffer) == -1)
+            return ERROR_NOT_FOUND;
+        tlv->header.length = sizeof(UINT);
+        return ERROR_SUCCESS;
     case TLV_META_TYPE_BOOL:
-        if (json_get_bool(packet->payload, key, &tlv->buffer) == -1)
-            return FALSE;
-        return TRUE;
+        bool val;
+        if (json_get_bool(packet->handle, key, &val) == -1)
+            return ERROR_NOT_FOUND;
+        tlv->buffer = val;
+        tlv->header.length = 1;
+        return ERROR_SUCCESS;
     case TLV_META_TYPE_RAW:
-    // not supported
-        return FALSE;
+        // not supported
+        return ERROR_NOT_FOUND;
     }
+    return ERROR_NOT_FOUND;
 
     // return packet_enum_tlv(packet, 0, type, tlv);
 }
@@ -655,23 +717,14 @@ DWORD packet_get_tlv(Packet *packet, TlvType type, Tlv *tlv)
  */
 DWORD packet_get_tlv_string(Packet *packet, TlvType type, Tlv *tlv)
 {
-    json_get_str(packet->payload, type, tlv->buffer);
+    DWORD res;
 
-    tlv->header.type = type;
-    tlv->header.length = strlen(tlv->buffer);
-    return ERROR_SUCCESS;
+    if ((res = packet_get_tlv(packet, type, tlv)) == ERROR_SUCCESS)
+    {
+        res = packet_is_tlv_null_terminated(tlv);
+    }
 
-#if 0
-	DWORD res;
-
-	if ((res = packet_get_tlv(packet, type, tlv)) == ERROR_SUCCESS)
-	{
-		res = packet_is_tlv_null_terminated(tlv);
-	}
-
-
-return res;
-#endif
+    return res;
 }
 
 /*!
@@ -779,25 +832,29 @@ wchar_t *packet_get_tlv_value_wstring(Packet *packet, TlvType type)
  */
 BOOL packet_get_tlv_uint(Packet *packet, TlvType type, UINT *output)
 {
-    Tlv uintTlv;
     char key[4];
-    itoa(type, key, 16);
-    if (json_get_int32(packet->payload, key, &uintTlv.buffer) == -1)
-    {
+    _itoa(type, key, 16);
+    UINT val;
+
+    if (json_get_int32(packet->handle, key, &val) == -1)
         return FALSE;
-    }
 #if 0
+    Tlv uintTlv;
+
     if (packet_get_tlv(packet, type, &uintTlv) != ERROR_SUCCESS)
     {
         return FALSE;
     }
-
+    PRINT_LINE;
     if ((uintTlv.header.length < sizeof(DWORD)))
     {
         return FALSE;
     }
-#endif
+    PRINT_LINE;
     *output = ntohl(*(LPDWORD)uintTlv.buffer);
+#endif
+    *output = ntohl(val);
+    PRINT_LINE;
     return TRUE;
 }
 
@@ -814,7 +871,6 @@ UINT packet_get_tlv_value_uint(Packet *packet, TlvType type)
     {
         return 0;
     }
-
     return output;
 }
 
@@ -870,14 +926,19 @@ QWORD packet_get_tlv_value_qword(Packet *packet, TlvType type)
  */
 BOOL packet_get_tlv_value_bool(Packet *packet, TlvType type)
 {
-    Tlv boolTlv;
     BOOL val = FALSE;
+    char key[4];
+    _itoa(type, key, 16);
 
+    if (json_get_bool(packet->handle, key, &val) == -1)
+        return FALSE;
+#if 0
+    Tlv boolTlv;
     if (packet_get_tlv(packet, type, &boolTlv) == ERROR_SUCCESS)
     {
         val = (BOOL)(*(PCHAR)boolTlv.buffer);
     }
-
+#endif
     return val;
 }
 
@@ -1262,7 +1323,14 @@ DWORD packet_add_request_id(Packet *packet)
     return ERROR_SUCCESS;
 }
 
+// test
 DWORD packet_transmit(Remote *remote, Packet *packet, PacketRequestCompletion *completion)
+{
+    const char* json=json_to_string(packet->handle);
+    dprintf("%s",json);
+}
+
+DWORD packet_transmit_org(Remote *remote, Packet *packet, PacketRequestCompletion *completion)
 {
     if (packet->partner != NULL && packet->partner->local)
     {
@@ -1305,6 +1373,121 @@ DWORD packet_transmit(Remote *remote, Packet *packet, PacketRequestCompletion *c
 
     // Destroy the packet
     packet_destroy(packet);
+
+    return res;
+}
+
+/*!
+ * @brief Receive a new packet on the given remote endpoint.
+ * @param remote Pointer to the \c Remote instance.
+ * @param packet Pointer to a pointer that will receive the \c Packet data.
+ * @return An indication of the result of processing the transmission request.
+ */
+static DWORD packet_receive(Remote *remote, Packet **packet)
+{
+    DWORD headerBytes = 0, payloadBytesLeft = 0, res;
+    Packet *localPacket = NULL;
+    PacketHeader header = {0};
+    int bytesRead;
+    BOOL inHeader = TRUE;
+    PUCHAR packetBuffer = NULL;
+    ULONG payloadLength;
+    TcpTransportContext *ctx = (TcpTransportContext *)remote->transport->ctx;
+
+    lock_acquire(remote->lock);
+
+    dprintf("[TCP PACKET RECEIVE] reading in the header");
+    // Read the packet length
+    while (inHeader)
+    {
+        if ((bytesRead = recv(ctx->fd, ((PCHAR)&header + headerBytes), sizeof(PacketHeader) - headerBytes, 0)) <= 0)
+        {
+            SetLastError(ERROR_NOT_FOUND);
+            goto out;
+        }
+
+        headerBytes += bytesRead;
+
+        if (headerBytes != sizeof(PacketHeader))
+        {
+            continue;
+        }
+
+        inHeader = FALSE;
+    }
+
+    if (headerBytes != sizeof(PacketHeader))
+    {
+        dprintf("[TCP] we didn't get enough header bytes");
+        goto out;
+    }
+    {
+        payloadLength = ntohl(header.length) - sizeof(TlvHeader);
+        vdprintf("[TCP] Payload length is %d", payloadLength);
+        DWORD packetSize = sizeof(PacketHeader) + payloadLength;
+        vdprintf("[TCP] total buffer size for the packet is %d", packetSize);
+        payloadBytesLeft = payloadLength;
+
+        // Allocate the payload
+        if (!(packetBuffer = (PUCHAR)malloc(packetSize)))
+        {
+            dprintf("[TCP] Failed to create the packet buffer");
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            goto out;
+        }
+        dprintf("[TCP] Allocated packet buffer at %p", packetBuffer);
+
+        // Copy the packet header stuff over to the packet
+        memcpy_s(packetBuffer, sizeof(PacketHeader), (LPBYTE)&header, sizeof(PacketHeader));
+
+        LPBYTE payload = packetBuffer + sizeof(PacketHeader);
+
+        // Read the payload
+        while (payloadBytesLeft > 0)
+        {
+            if ((bytesRead = recv(ctx->fd, (PCHAR)(payload + payloadLength - payloadBytesLeft), payloadBytesLeft, 0)) <= 0)
+            {
+
+                if (GetLastError() == WSAEWOULDBLOCK)
+                {
+                    continue;
+                }
+
+                if (bytesRead < 0)
+                {
+                    SetLastError(ERROR_NOT_FOUND);
+                }
+                goto out;
+            }
+
+            payloadBytesLeft -= bytesRead;
+        }
+
+        // Didn't finish?
+        if (payloadBytesLeft)
+        {
+            dprintf("[TCP] Failed to get all the payload bytes");
+            goto out;
+        }
+    }
+
+    SetLastError(ERROR_SUCCESS);
+    *packet = packetBuffer;
+
+out:
+    res = GetLastError();
+
+    dprintf("[TCP] Freeing stuff up");
+    SAFE_FREE(packetBuffer);
+
+    // Cleanup on failure
+    if (res != ERROR_SUCCESS)
+    {
+        SAFE_FREE(localPacket);
+    }
+
+    lock_release(remote->lock);
+    dprintf("[TCP] Packet receive finished");
 
     return res;
 }

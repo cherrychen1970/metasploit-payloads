@@ -70,7 +70,7 @@ typedef struct ___u128 {
 #undef X509_NAME
 
 #ifdef DEBUGTRACE
-#define dprintf(...) real_dprintf(__VA_ARGS__)
+#define dprintf(...) real_dprintf( __FILE__,__LINE__,__VA_ARGS__)
 #if DEBUGTRACE == 1
 #define vdprintf dprintf
 #else
@@ -100,12 +100,12 @@ typedef struct ___u128 {
  * @details The function emits debug strings via `OutputDebugStringA`, hence all messages can be viewed
  *          using Visual Studio's _Output_ window, _DebugView_ from _SysInternals_, or _Windbg_.
  */
-static _inline void real_dprintf(char *format, ...)
+static _inline void real_dprintf(const char *file, int line, char *format, ...)
 {
 	va_list args;
 	char buffer[1024];
 	size_t len;
-	_snprintf_s(buffer, sizeof(buffer), sizeof(buffer)-1, "[%04x] ", GetCurrentThreadId());
+	_snprintf_s(buffer, sizeof(buffer), sizeof(buffer)-1, "[%04x] %s(%d):", GetCurrentThreadId(), file,line);
 	len = strlen(buffer);
 	va_start(args, format);
 	vsnprintf_s(buffer + len, sizeof(buffer)-len, sizeof(buffer)-len - 3, format, args);

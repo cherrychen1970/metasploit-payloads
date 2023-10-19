@@ -1,6 +1,6 @@
 #include "metsrv.h"
 #include "json.h"
-//#include "utlist.h"
+// #include "utlist.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -11,7 +11,8 @@ struct json_object *json_read_file(const char *filename)
 	FILE *file = fopen(filename, "r");
 	struct json_tokener *tok = json_tokener_new();
 
-	if (!file || !tok) {
+	if (!file || !tok)
+	{
 		goto out;
 	}
 
@@ -19,38 +20,50 @@ struct json_object *json_read_file(const char *filename)
 	size_t buf_len;
 	enum json_tokener_error rc = json_tokener_continue;
 
-	do  {
+	do
+	{
 		buf_len = fread(buf, 1, sizeof(buf), file);
-		if (buf_len > 0) {
+		if (buf_len > 0)
+		{
 			obj = json_tokener_parse_ex(tok, buf, buf_len);
 			rc = json_tokener_get_error(tok);
 		}
 	} while (buf_len > 0 && rc == json_tokener_continue);
 
-	if (rc != json_tokener_success) {
+	if (rc != json_tokener_success)
+	{
 		dprintf("JSON parse error: %s", json_tokener_error_desc(rc));
 	}
 
 out:
-	if (tok) {
+	if (tok)
+	{
 		json_tokener_free(tok);
 	}
-	if (file) {
+	if (file)
+	{
 		fclose(file);
 	}
 	return obj;
 }
 
-struct json_object * json_read_buf(const void *buf, size_t buf_len)
+struct json_object *json_read_buf(const void *buf, size_t buf_len)
 {
 	struct json_tokener *tok = json_tokener_new();
 	struct json_object *obj = json_tokener_parse_ex(tok, buf, buf_len);
-	if (!obj) {
+	if (!obj)
+	{
 		enum json_tokener_error rc = json_tokener_get_error(tok);
 		dprintf("JSON parse error: %s", json_tokener_error_desc(rc));
 	}
 	json_tokener_free(tok);
 	return obj;
+}
+
+const char *json_to_string(json_object *obj)
+{
+	int flags = JSON_C_TO_STRING_PLAIN;
+	return json_object_to_json_string_ext(obj, flags);
 }
 
 #if 0
@@ -132,9 +145,11 @@ void json_read_buffer_queue_cb(struct buffer_queue *queue, struct json_tokener *
 
 int json_add_str(struct json_object *json, const char *key, const char *val)
 {
-	if (val) {
+	if (val)
+	{
 		struct json_object *obj = json_object_new_string(val);
-		if (obj) {
+		if (obj)
+		{
 			json_object_object_add(json, key, obj);
 			return 0;
 		}
@@ -147,7 +162,8 @@ int json_add_str_fmt(struct json_object *json, const char *key, const char *form
 	char *buf = NULL;
 	va_list args;
 	va_start(args, format);
-	if (vsprintf(&buf, format, args) == -1) {
+	if (vsprintf(&buf, format, args) == -1)
+	{
 		buf = NULL;
 	}
 	va_end(args);
@@ -160,7 +176,8 @@ int json_add_str_fmt(struct json_object *json, const char *key, const char *form
 int json_add_int32(struct json_object *json, const char *key, int32_t val)
 {
 	struct json_object *obj = json_object_new_int(val);
-	if (obj) {
+	if (obj)
+	{
 		json_object_object_add(json, key, obj);
 		return 0;
 	}
@@ -170,7 +187,8 @@ int json_add_int32(struct json_object *json, const char *key, int32_t val)
 int json_add_int64(struct json_object *json, const char *key, int64_t val)
 {
 	struct json_object *obj = json_object_new_int64(val);
-	if (obj) {
+	if (obj)
+	{
 		json_object_object_add(json, key, obj);
 		return 0;
 	}
@@ -180,7 +198,8 @@ int json_add_int64(struct json_object *json, const char *key, int64_t val)
 int json_add_double(struct json_object *json, const char *key, double val)
 {
 	struct json_object *obj = json_object_new_double(val);
-	if (obj) {
+	if (obj)
+	{
 		json_object_object_add(json, key, obj);
 		return 0;
 	}
@@ -190,7 +209,8 @@ int json_add_double(struct json_object *json, const char *key, double val)
 int json_add_bool(struct json_object *json, const char *key, bool val)
 {
 	struct json_object *obj = json_object_new_boolean(val);
-	if (obj) {
+	if (obj)
+	{
 		json_object_object_add(json, key, obj);
 		return 0;
 	}
@@ -200,7 +220,8 @@ int json_add_bool(struct json_object *json, const char *key, bool val)
 int json_get_str(json_object *json, const char *key, const char **dst)
 {
 	struct json_object *obj = json_object_object_get(json, key);
-	if (obj) {
+	if (obj)
+	{
 		*dst = json_object_get_string(obj);
 	}
 	return *dst ? 0 : -1;
@@ -209,10 +230,12 @@ int json_get_str(json_object *json, const char *key, const char **dst)
 int json_get_str_def(json_object *json, const char *key, const char **dst, const char *def)
 {
 	struct json_object *obj = json_object_object_get(json, key);
-	if (obj) {
+	if (obj)
+	{
 		*dst = json_object_get_string(obj);
 	}
-	if (*dst == NULL) {
+	if (*dst == NULL)
+	{
 		*dst = def;
 	}
 	return *dst ? 0 : -1;
@@ -221,9 +244,11 @@ int json_get_str_def(json_object *json, const char *key, const char **dst, const
 int json_get_int32(json_object *json, const char *key, int32_t *dst)
 {
 	struct json_object *obj = json_object_object_get(json, key);
-	if (obj) {
+	if (obj)
+	{
 		*dst = json_object_get_int(obj);
-		if (errno != EINVAL) {
+		if (errno != EINVAL)
+		{
 			return 0;
 		}
 	}
@@ -233,9 +258,11 @@ int json_get_int32(json_object *json, const char *key, int32_t *dst)
 int json_get_int64(json_object *json, const char *key, int64_t *dst)
 {
 	struct json_object *obj = json_object_object_get(json, key);
-	if (obj) {
+	if (obj)
+	{
 		*dst = json_object_get_int64(obj);
-		if (errno != EINVAL) {
+		if (errno != EINVAL)
+		{
 			return 0;
 		}
 	}
@@ -245,9 +272,11 @@ int json_get_int64(json_object *json, const char *key, int64_t *dst)
 int json_get_double(json_object *json, const char *key, double *dst)
 {
 	struct json_object *obj = json_object_object_get(json, key);
-	if (obj) {
+	if (obj)
+	{
 		*dst = json_object_get_double(obj);
-		if (errno != EINVAL) {
+		if (errno != EINVAL)
+		{
 			return 0;
 		}
 	}
@@ -257,15 +286,16 @@ int json_get_double(json_object *json, const char *key, double *dst)
 int json_get_bool(json_object *json, const char *key, bool *dst)
 {
 	struct json_object *obj = json_object_object_get(json, key);
-	if (obj) {
+	if (obj)
+	{
 		*dst = json_object_get_boolean(obj);
-		if (errno != EINVAL) {
+		if (errno != EINVAL)
+		{
 			return 0;
 		}
 	}
 	return -1;
 }
-
 
 #if 0
 struct json_rpc {

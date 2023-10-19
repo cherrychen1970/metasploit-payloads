@@ -216,6 +216,7 @@ typedef struct _Packet
 
 	PUCHAR    payload;
 	ULONG     payloadLength;
+	PVOID 	  handle;
 
 	LIST *    decompressed_buffers;
 
