@@ -34,6 +34,10 @@ struct json_object
     struct lh_table *c_object;
     struct array_list *c_array;
     struct {
+      unsigned char *ptr;
+      int len;
+    } c_binary;
+    struct {
 	union {
 		/* optimize: if we have small strings, we can store them
 		 * directly. This saves considerable CPU cycles AND memory.

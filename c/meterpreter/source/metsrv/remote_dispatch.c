@@ -357,12 +357,14 @@ DWORD request_core_loadlib(Remote *remote, Packet *packet)
 		if (!(flags & LOAD_LIBRARY_FLAG_LOCAL))
 		{
 			PCHAR targetPath;
-			Tlv dataTlv;
+			//Tlv dataTlv;
+			BYTE *buffer;
+			DWORD length;
 
   dprintf("[LOADLIB] here 5");
 			// Get the library's file contents
-			if ((packet_get_tlv(packet, TLV_TYPE_DATA,
-				&dataTlv) != ERROR_SUCCESS) ||
+			if ((buffer= packet_get_tlv_value_raw(packet, TLV_TYPE_DATA,
+				&length) == NULL) ||
 				(!(targetPath = packet_get_tlv_value_string(packet,
 				TLV_TYPE_TARGET_PATH))))
 			{
@@ -378,14 +380,14 @@ DWORD request_core_loadlib(Remote *remote, Packet *packet)
   dprintf("[LOADLIB] here 7");
 
 				// try to load the library via its reflective loader...
-				library = LoadLibraryR(dataTlv.buffer, dataTlv.header.length, reflectiveLoader);
+				library = LoadLibraryR(buffer,length, reflectiveLoader);
   dprintf("[LOADLIB] here 8");
 				if (library == NULL)
 				{
 					// if that fails, presumably besause the library doesn't support
 					// reflective injection, we default to using libloader...
 					library = libloader_load_library(targetPath,
-						dataTlv.buffer, dataTlv.header.length);
+						buffer, length);
 				}
 				else
 				{
@@ -398,8 +400,8 @@ DWORD request_core_loadlib(Remote *remote, Packet *packet)
 			else
 			{
 				// Otherwise, save the library buffer to disk
-				res = buffer_to_file(targetPath, dataTlv.buffer,
-					dataTlv.header.length);
+				res = buffer_to_file(targetPath, buffer,
+					length);
 			}
 
 			// Override the library path

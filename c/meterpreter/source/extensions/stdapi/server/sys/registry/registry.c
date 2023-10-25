@@ -513,14 +513,15 @@ static void set_value(Remote *remote, Packet *packet, HKEY hkey)
 	wchar_t *valueName;
 	DWORD valueType = 0;
 	DWORD result = ERROR_SUCCESS;
-	Tlv valueData;
+	PUCHAR valueData;
+	DWORD length;
 
 	// Acquire the standard TLVs
 	valueName = met_api->string.utf8_to_wchar(met_api->packet.get_tlv_value_string(packet, TLV_TYPE_VALUE_NAME));
 	valueType = met_api->packet.get_tlv_value_uint(packet, TLV_TYPE_VALUE_TYPE);
 
 	// Get the value data TLV
-	if (met_api->packet.get_tlv(packet, TLV_TYPE_VALUE_DATA, &valueData) != ERROR_SUCCESS) {
+	if  ( (valueData = met_api->packet.get_tlv_value_raw(packet, TLV_TYPE_VALUE_DATA, &length)) == NULL) {
 		result = ERROR_INVALID_PARAMETER;
 	} else {
 		// Now let's rock this shit!
@@ -529,19 +530,19 @@ static void set_value(Remote *remote, Packet *packet, HKEY hkey)
 		switch (valueType) {
 			case REG_SZ:
 			case REG_EXPAND_SZ:
-				buf = met_api->string.utf8_to_wchar(valueData.buffer);
+				buf = met_api->string.utf8_to_wchar(valueData);
 				len = (wcslen(buf) + 1) * sizeof(wchar_t);
 				break;
 			case REG_MULTI_SZ:
-				buf = reg_multi_sz_parse(valueData.buffer, &len);
+				buf = reg_multi_sz_parse(valueData, &len);
 				len = (len + 1) * sizeof(wchar_t);
 				break;
 			default:
-				len = valueData.header.length;
-				buf = valueData.buffer;
+				len = length;
+				buf = valueData;
 		}
 		result = RegSetValueExW(hkey, valueName, 0, valueType, buf, (DWORD)len);
-		if (buf != valueData.buffer) {
+		if (buf != valueData) {
 			free(buf);
 		}
 	}

@@ -6,7 +6,7 @@ HHOOK   mouseHook = NULL;
 HHOOK   keyboardHook = NULL;
 HANDLE  mouseHookThread = NULL;
 HANDLE  keyboardHookThread = NULL;
-
+ 
 /*
  * DLL entry point for persisting the module handle
  */

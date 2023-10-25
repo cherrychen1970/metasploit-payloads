@@ -389,14 +389,15 @@ DWORD request_ui_send_keyevent(Remote *remote, Packet *packet)
 {
 	Packet *response = met_api->packet.create_response(packet);
 	DWORD result = ERROR_SUCCESS;
-	Tlv data;
+	PUCHAR data;
+	DWORD length;
 
-	if ((met_api->packet.get_tlv(packet, TLV_TYPE_KEYEVENT_SEND, &data)) == ERROR_SUCCESS)
+	if ((data = met_api->packet.get_tlv_value_raw(packet, TLV_TYPE_KEYEVENT_SEND, &length)) != NULL)
 	{
-		for (unsigned int i=0;i<data.header.length;i+=8)
+		for (unsigned int i=0;i<length;i+=8)
 		{
-			UCHAR action = data.buffer[i];
-			WORD keycode = *(WORD*)&data.buffer[i+4];
+			UCHAR action = data[i];
+			WORD keycode = *(WORD*)&data[i+4];
 			if (action == 1)
 			{
 				ui_send_key(keycode, 0);

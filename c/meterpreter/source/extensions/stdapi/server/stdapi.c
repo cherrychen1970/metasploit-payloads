@@ -26,12 +26,13 @@ Command customCommands[] =
 	// General
 	COMMAND_REQ(COMMAND_ID_CORE_CHANNEL_OPEN, request_general_channel_open),
 
+#if 0
 	// Railgun
 	COMMAND_REQ(COMMAND_ID_STDAPI_RAILGUN_API, request_railgun_api),
 	COMMAND_REQ(COMMAND_ID_STDAPI_RAILGUN_API_MULTI, request_railgun_api_multi),
 	COMMAND_REQ(COMMAND_ID_STDAPI_RAILGUN_MEMREAD, request_railgun_memread),
 	COMMAND_REQ(COMMAND_ID_STDAPI_RAILGUN_MEMWRITE, request_railgun_memwrite),
-
+#endif
 	// Fs
 	COMMAND_REQ(COMMAND_ID_STDAPI_FS_LS, request_fs_ls),
 	COMMAND_REQ(COMMAND_ID_STDAPI_FS_GETWD, request_fs_getwd),

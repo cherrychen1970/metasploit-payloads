@@ -173,7 +173,8 @@ typedef enum json_type {
   json_type_int,
   json_type_object,
   json_type_array,
-  json_type_string
+  json_type_string,
+  json_type_binary
 } json_type;
 
 /* reference counting functions */
@@ -927,6 +928,18 @@ JSON_EXPORT int json_object_set_string(json_object* obj, const char* new_value);
  * @returns 1 if value is set correctly, 0 otherwise
  */
 JSON_EXPORT int json_object_set_string_len(json_object* obj, const char* new_value, int len);
+
+
+
+/* binary type methods */
+
+JSON_EXPORT struct json_object* json_object_new_binary(unsigned char *s, int len);
+
+JSON_EXPORT unsigned char* json_object_get_binary(struct json_object *obj, int *len);
+
+JSON_EXPORT int json_object_set_binary(json_object* obj, unsigned char* new_value, int len);
+
+
 
 /** Check if two json_object's are equal
  *

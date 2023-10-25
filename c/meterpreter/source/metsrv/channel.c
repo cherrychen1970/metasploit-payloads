@@ -430,14 +430,12 @@ DWORD _channel_packet_completion_routine(Remote *remote, Packet *packet,
 	}
 	else if (COMMAND_ID_CORE_CHANNEL_WRITE == commandId && comp->routine.write)
 	{
-		Tlv lengthTlv;
-		ULONG length = 0;
+		//Tlv lengthTlv;
+		UINT length = 0;
 
 		// Get the number of bytes written to the channel
-		if ((packet_get_tlv(packet, TLV_TYPE_LENGTH, &lengthTlv) == ERROR_SUCCESS) && (lengthTlv.header.length >= sizeof(DWORD)))
-		{
-			length = ntohl(*(LPDWORD)lengthTlv.buffer);
-		}
+		length = packet_get_tlv_value_uint(packet, TLV_TYPE_LENGTH);
+
 
 		res = comp->routine.write(remote, channel, comp->context, result, length);
 	}
@@ -466,7 +464,7 @@ DWORD channel_open(Remote *remote, Tlv *addend, DWORD addendLength, ChannelCompl
 {
 	PacketRequestCompletion requestCompletion, *realRequestCompletion = NULL;
 	DWORD res = ERROR_SUCCESS;
-	Tlv commandIdTlv;
+	//Tlv commandIdTlv;
 
 	do
 	{
@@ -481,7 +479,7 @@ DWORD channel_open(Remote *remote, Tlv *addend, DWORD addendLength, ChannelCompl
 		packet_add_tlvs(request, addend, addendLength);
 
 		// If no method TLV as added, add the default one.
-		if (packet_get_tlv(request, TLV_TYPE_COMMAND_ID, &commandIdTlv) != ERROR_SUCCESS)
+		if (packet_get_tlv_value_uint(request, TLV_TYPE_COMMAND_ID) == 0)
 		{
 			packet_add_tlv_uint(request, TLV_TYPE_COMMAND_ID, COMMAND_ID_CORE_CHANNEL_OPEN);
 		}
@@ -526,7 +524,7 @@ DWORD channel_read(Channel *channel, Remote *remote, Tlv *addend,
 		packet_add_tlvs(request, addend, addendLength);
 
 		// If no method TLV as added, add the default one.
-		if (packet_get_tlv(request, TLV_TYPE_COMMAND_ID, &commandIdTlv) != ERROR_SUCCESS)
+		if (packet_get_tlv_value_uint(request, TLV_TYPE_COMMAND_ID) == 0)
 		{
 			packet_add_tlv_uint(request, TLV_TYPE_COMMAND_ID, COMMAND_ID_CORE_CHANNEL_READ);
 		}
@@ -576,7 +574,7 @@ DWORD channel_write(Channel *channel, Remote *remote, Tlv *addend, DWORD addendL
 		packet_add_tlvs(request, addend, addendLength);
 
 		// If no method TLV as added, add the default one.
-		if (packet_get_tlv(request, TLV_TYPE_COMMAND_ID, &commandIdTlv) != ERROR_SUCCESS)
+		if (packet_get_tlv_value_uint(request, TLV_TYPE_COMMAND_ID) == 0)
 		{
 			dprintf("[CHANNEL] channel_write: adding command id of %u", COMMAND_ID_CORE_CHANNEL_WRITE);
 			packet_add_tlv_uint(request, TLV_TYPE_COMMAND_ID, COMMAND_ID_CORE_CHANNEL_WRITE);
@@ -641,7 +639,7 @@ DWORD channel_close(Channel *channel, Remote *remote, Tlv *addend,
 		packet_add_tlvs(request, addend, addendLength);
 
 		// If no method TLV as added, add the default one.
-		if (packet_get_tlv(request, TLV_TYPE_COMMAND_ID, &commandIdTlv) != ERROR_SUCCESS)
+		if (packet_get_tlv_value_uint(request, TLV_TYPE_COMMAND_ID) == 0)
 		{
 			packet_add_tlv_uint(request, TLV_TYPE_COMMAND_ID, COMMAND_ID_CORE_CHANNEL_CLOSE);
 		}
@@ -692,7 +690,7 @@ DWORD channel_interact(Channel *channel, Remote *remote, Tlv *addend,
 		packet_add_tlvs(request, addend, addendLength);
 
 		// If no method TLV as added, add the default one.
-		if (packet_get_tlv(request, TLV_TYPE_COMMAND_ID, &commandIdTlv) != ERROR_SUCCESS)
+		if (packet_get_tlv_value_uint(request, TLV_TYPE_COMMAND_ID) == 0)
 		{
 			packet_add_tlv_uint(request, TLV_TYPE_COMMAND_ID, COMMAND_ID_CORE_CHANNEL_INTERACT);
 		}

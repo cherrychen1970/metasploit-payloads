@@ -33,6 +33,7 @@
 
 #include "base.h"
 #include "core.h"
+#include "packet.h"
 #include "remote.h"
 #include "pivot_tree.h"
 #include "channel.h"

@@ -150,7 +150,8 @@ DWORD request_sys_process_memory_write(Remote *remote, Packet *packet)
 	LPVOID base;
 	DWORD result = ERROR_SUCCESS;
 	size_t written = 0;
-	Tlv data;
+	PUCHAR data;
+	DWORD dataLength;
 
 	handle = (HANDLE)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_HANDLE);
 	base   = (LPVOID)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_BASE_ADDRESS);
@@ -160,14 +161,14 @@ DWORD request_sys_process_memory_write(Remote *remote, Packet *packet)
 		// Invalid handle, base, or data?
 		if ((!handle) ||
 		    (!base) ||
-		    (met_api->packet.get_tlv(packet, TLV_TYPE_PROCESS_MEMORY, &data)) != ERROR_SUCCESS)
+		    (data = met_api->packet.get_tlv_value_raw(packet, TLV_TYPE_PROCESS_MEMORY, &dataLength)) == NULL)
 		{
 			result = ERROR_INVALID_PARAMETER;
 			break;
 		}
 
 		// Write the memory
-		if ((!WriteProcessMemory(handle, base, data.buffer, data.header.length, 
+		if ((!WriteProcessMemory(handle, base, data, dataLength, 
 				&written)) &&
 		    (GetLastError() != ERROR_PARTIAL_COPY))
 		{

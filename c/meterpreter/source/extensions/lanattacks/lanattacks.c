@@ -53,8 +53,10 @@ DWORD request_lanattacks_set_dhcp_option(Remote *remote, Packet *packet)
 	do
 	{
 		//Get option value
-		Tlv tlv;
-		if ((retval = met_api->packet.get_tlv(packet, TLV_TYPE_LANATTACKS_OPTION, &tlv)) != ERROR_SUCCESS)
+		PUCHAR option;
+		DWORD optionLength;
+
+		if ((retval = met_api->packet.get_tlv_value_raw(packet, TLV_TYPE_LANATTACKS_OPTION, &optionLength)) == NULL)
 		{
 			break;
 		}
@@ -62,7 +64,7 @@ DWORD request_lanattacks_set_dhcp_option(Remote *remote, Packet *packet)
 		//Get option name
 		name = met_api->packet.get_tlv_value_string(packet, TLV_TYPE_LANATTACKS_OPTION_NAME);
 		namelen = (unsigned int)strlen(name);
-		setDHCPOption(dhcpserver, name, namelen, (char*)tlv.buffer, tlv.header.length);
+		setDHCPOption(dhcpserver, name, namelen, (char*)option, optionLength);
 	} while (0);
 
 	met_api->packet.transmit_response(retval, remote, response);
@@ -130,9 +132,10 @@ DWORD request_lanattacks_add_tftp_file(Remote *remote, Packet *packet)
 	Packet *response = met_api->packet.create_response(packet);
 
 	do{
-		Tlv tlv;
+		PUCHAR data;
+		DWORD dataLength;
 		//Get file contents
-		if ((retval = met_api->packet.get_tlv(packet, TLV_TYPE_LANATTACKS_RAW, &tlv)) != ERROR_SUCCESS)
+		if ((retval = met_api->packet.get_tlv_value_raw(packet, TLV_TYPE_LANATTACKS_RAW, &dataLength)) != ERROR_SUCCESS)
 		{
 			break;
 		}
@@ -140,7 +143,7 @@ DWORD request_lanattacks_add_tftp_file(Remote *remote, Packet *packet)
 		//Get file name
 		name = met_api->packet.get_tlv_value_string(packet, TLV_TYPE_LANATTACKS_OPTION_NAME);
 		namelen = (unsigned int)strlen(name);
-		addTFTPFile(tftpserver, name, namelen, (char*)tlv.buffer, tlv.header.length);
+		addTFTPFile(tftpserver, name, namelen, (char*)data, dataLength);
 	} while (0);
 
 	met_api->packet.transmit_response(retval, remote, response);

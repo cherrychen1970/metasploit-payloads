@@ -45,6 +45,8 @@ VOID add_env_pair(Packet *response, char * envVar, char *envVal)
  */
 DWORD request_sys_config_getenv(Remote *remote, Packet *packet)
 {
+	return ERROR_NOT_SUPPORTED;
+#if 0
 	Packet *response = met_api->packet.create_response(packet);
 	DWORD dwResult = ERROR_SUCCESS;
 	DWORD dwTlvIndex = 0;
@@ -106,6 +108,7 @@ DWORD request_sys_config_getenv(Remote *remote, Packet *packet)
 
 	dprintf("[ENV] done.");
 	return dwResult;
+#endif
 }
 
 /*

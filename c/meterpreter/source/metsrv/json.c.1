@@ -157,6 +157,19 @@ int json_add_str(struct json_object *json, const char *key, const char *val)
 	return -1;
 }
 
+#if 0
+int json_add_null(struct json_object *json, const char *key)
+{
+	struct json_object *obj = json_object_new(json_type_null);
+	if (obj)
+	{
+		json_object_object_add(json, key, obj);
+		return 0;
+	}
+
+	return -1;
+}
+#endif
 int json_add_str_fmt(struct json_object *json, const char *key, const char *format, ...)
 {
 	char *buf = NULL;
@@ -215,6 +228,28 @@ int json_add_bool(struct json_object *json, const char *key, bool val)
 		return 0;
 	}
 	return -1;
+}
+
+// array expected to be jobject array
+int json_add_array(struct json_object *json, const char *key, struct arraylist *list)
+{
+	struct json_object *array = json_object_new_array();
+
+	if (array)
+	{
+		// TODO : foreach and add
+		for (int i; i < array_list_length(list); i++)
+			json_object_array_add(array, array_list_get_idx(list, i));
+
+		json_object_object_add(json, key, array);
+		return 0;
+	}
+	return -1;
+}
+
+int json_array_add(struct json_object *array, struct json_object *item)
+{
+	return json_object_array_add(array, item);
 }
 
 int json_get_str(json_object *json, const char *key, const char **dst)

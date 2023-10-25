@@ -5,6 +5,8 @@
 #ifndef _METERPRETER_COMMON_METAPI_H
 #define _METERPRETER_COMMON_METAPI_H
 
+#include <stdint.h>
+
 typedef struct _InjectApi
 {
 	DWORD(*dll)(DWORD dwPid, LPVOID lpDllBuffer, DWORD dwDllLength, LPCSTR reflectiveLoader, char* cpCommandLine);
@@ -107,11 +109,17 @@ typedef struct _PacketApi
 	DWORD(*add_tlv_wstring_len)(Packet* packet, TlvType type, LPCWSTR str, size_t strLength);
 	DWORD(*add_tlvs)(Packet* packet, Tlv* entries, DWORD numEntries);
 	DWORD(*call_completion_handlers)(Remote* remote, Packet* response, LPCSTR requestId);
-	DWORD(*enum_tlv)(Packet* packet, DWORD index, TlvType type, Tlv* tlv);
+
+
+	// TODO : remove later
+		DWORD(*enum_tlv)(Packet* packet, DWORD index, TlvType type, Tlv* tlv);
+#if 0
+
 	DWORD(*get_tlv)(Packet* packet, TlvType type, Tlv* tlv);
 	DWORD(*get_tlv_group_entry)(Packet* packet, Tlv* group, TlvType type, Tlv* entry);
 	DWORD(*get_tlv_string)(Packet* packet, TlvType type, Tlv* tlv);
 	DWORD(*is_tlv_null_terminated)(Tlv* tlv);
+#endif
 	DWORD(*remove_completion_handler)(LPCSTR requestId);
 	DWORD(*transmit)(Remote* remote, Packet* packet, PacketRequestCompletion* completion);
 	DWORD(*transmit_empty_response)(Remote* remote, Packet* packet, DWORD res);
@@ -122,7 +130,9 @@ typedef struct _PacketApi
 	Packet*(*create_response)(Packet* request);
 	PacketTlvType(*get_type)(Packet* packet);
 	QWORD(*get_tlv_value_qword)(Packet* packet, TlvType type);
+#if 0
 	TlvMetaType(*get_tlv_meta)(Packet* packet, Tlv* tlv);
+#endif
 	UINT(*get_tlv_value_uint)(Packet* packet, TlvType type);
 	BOOL(*get_tlv_uint)(Packet* packet, TlvType type, UINT* output);
 	VOID(*destroy)(Packet* packet);
@@ -159,6 +169,63 @@ typedef struct _ListApi
 	VOID(*destroy)(PLIST pList);
 } ListApi;
 
+typedef struct _DataApi
+{
+	/* dict */ 
+	void *(*new_dict)(void);
+
+	/* dict add */ 
+	int (*dict_add_string)( void *dict, int key, const char *val);
+	int (*dict_add_int32)( void *dict, int key, int32_t val);
+	int (*dict_add_int64)( void *dict, int key, int64_t val);
+	int (*dict_add_double)( void *dict, int key, double val);
+	int (*dict_add_bool)(void  *dict, int key, _Bool val);
+	int (*dict_add_binary)( void *dict, int key, unsigned char *val, int len);
+	// add jobject
+	int (*dict_add)( void *dict, int key, void *val);
+
+	/* dict get*/
+	int (*dict_get_string)(void *dict, int key, const char **dst);
+	int (*dict_get_int32)(void *dict, int key, int32_t *dst);
+	int (*dict_get_int64)(void *dict, int key, int64_t *dst);
+	int (*dict_get_double)(void *dict, int key, double *dst);
+	int (*dict_get_bool)(void *dict, int key, _Bool *dst);
+	unsigned char *(*dict_get_binary)( void *dict, int key, int *len);
+	// not exposed
+	//struct hashtable *(*get_dict)( void *dict, int key);
+	//struct arraylist *(*get_list)( void *dict, int key);
+
+	// return as jobject
+	void* (*dict_get)(void *dict, int key);
+
+	/* list */
+	void *(*new_list)(void);
+	int (*list_length)(void *list);
+
+	/* list add */
+
+	int (*list_add_string)(void *list, const char *val);
+	int (*list_add_int32)(void *list, int32_t val);
+	int (*list_add_int64)(void *list,  int64_t val);
+	int (*list_add_double)(void *list, double val);
+	int (*list_add_bool)(void *list, _Bool val);
+	int (*list_add_binary)(void *list, unsigned char *val, int len);
+	// used to add dict and array
+	int (*list_add)(void *list, void *val);
+
+	/* list get */
+	int (*list_get_string)(void *list, int idx, const char **dst);
+	int (*list_get_int32)(void *list, int idx, int32_t *dst);
+	int (*list_get_int64)(void *list, int idx, int64_t *dst);
+	int (*list_get_double)(void *list, int idx, double *dst);
+	int (*list_get_bool)(void *list, int idx, _Bool *dst);
+	unsigned char *(*list_get_binary)(void *list, int idx, int *len);
+	void *(*list_get)(void *list, int idx);
+	//struct hashtable *(*list_get_dict)(void *list, int idx);
+	//struct arraylist *(*list_get_list)(void *list, int idx);
+	const char* (*to_string)(void *dict);
+} DataApi;
+
 typedef struct _MetApi
 {
     PacketApi packet;
@@ -172,6 +239,7 @@ typedef struct _MetApi
 	InjectApi inject;
 	DesktopApi desktop;
 	ListApi list;
+	DataApi *data;
 } MetApi;
 
 extern MetApi* met_api;

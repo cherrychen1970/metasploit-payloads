@@ -14,7 +14,7 @@ add_definitions(
     -DUNICODE
     -D_UNICODE
     -D_CRT_SECURE_NO_WARNINGS
-    -DDEBUGTRACE
+    #-DDEBUGTRACE
 )
 
 if(MSVC)
@@ -34,15 +34,12 @@ file(GLOB SRC_FILES
 )
 
 list(REMOVE_ITEM SRC_FILES ${SRC_DIR}/dllmain.c)
-list(REMOVE_ITEM SRC_FILES ${SRC_DIR}/main.c)
 
 add_library(${PROJECT_NAME} SHARED ${SRC_FILES}  ${SRC_DIR}/dllmain.c )
 add_library(${PROJECT_NAME}_static ${SRC_FILES})
-add_executable(${PROJECT_NAME}_exe ${SRC_FILES} ${SRC_DIR}/main.c)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${ALIAS}.${TARGET_ARCH})
 set_target_properties(${PROJECT_NAME}_static PROPERTIES OUTPUT_NAME ${ALIAS}_static.${TARGET_ARCH})
-set_target_properties(${PROJECT_NAME}_exe PROPERTIES OUTPUT_NAME ${ALIAS})
 
 if(MSVC)
 #    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/DEF:\"${MOD_DEF_DIR}/metsrv.def\"")
@@ -57,12 +54,7 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} ${LINK_LIBS})
 target_link_libraries(${PROJECT_NAME}_static ${LINK_LIBS})
-target_link_libraries(${PROJECT_NAME}_exe ${LINK_LIBS})
 
-add_custom_target(run
-    COMMAND ${CMAKE_BINARY_DIR}/${ALIAS}.exe
-    USES_TERMINAL
-)
 
 # Post processing (required for all Meterpreter DLLs)
 # editbin(${PROJECT_NAME} ${BIN_SUBSYSTEM})

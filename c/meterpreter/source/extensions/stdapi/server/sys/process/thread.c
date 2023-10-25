@@ -424,6 +424,8 @@ DWORD request_sys_process_thread_query_regs(Remote *remote, Packet *packet)
  */
 DWORD request_sys_process_thread_set_regs(Remote *remote, Packet *packet)
 {
+	return ERROR_NOT_SUPPORTED;
+#if 0
 	Packet *response = met_api->packet.create_response(packet);
 	HANDLE thread;
 	DWORD result = ERROR_SUCCESS;
@@ -462,11 +464,12 @@ DWORD request_sys_process_thread_set_regs(Remote *remote, Packet *packet)
 						TLV_TYPE_REGISTER_VALUE_32, &valueTlv) != ERROR_SUCCESS))
 					continue;
 				
+				#if 0
 				// Validate them
 				if ((met_api->packet.is_tlv_null_terminated(&nameTlv) != ERROR_SUCCESS)
 					|| (valueTlv.header.length < sizeof(ULONG)))
 					continue;
-				
+				#endif
 				// Stash them
 				name  = (LPCSTR)nameTlv.buffer;
 				value = ntohl(*(PULONG)valueTlv.buffer);
@@ -490,6 +493,7 @@ DWORD request_sys_process_thread_set_regs(Remote *remote, Packet *packet)
 	met_api->packet.transmit_response(result, remote, response);
 
 	return ERROR_SUCCESS;
+#endif
 }
 
 /*********************

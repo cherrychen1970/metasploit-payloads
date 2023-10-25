@@ -10,6 +10,7 @@ add_definitions(
     -D_USRDLL
     -DCINTERFACE
     -DCOBJMACROS
+    -DDEBUGTRACE
     -D_CRT_SECURE_NO_WARNINGS
 )
 
@@ -38,7 +39,7 @@ file(GLOB SRC_FILES
     ${SRC_DIR}/net/*.c
     ${SRC_DIR}/net/config/*.c
     ${SRC_DIR}/net/socket/*.c
-    ${SRC_DIR}/railgun/*.c
+    #${SRC_DIR}/railgun/*.c
     ${SRC_DIR}/resource/*.c
     ${SRC_DIR}/resource/*.rc
     ${SRC_DIR}/sys/*.c

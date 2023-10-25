@@ -902,7 +902,7 @@ DWORD remote_request_core_channel_write(Remote *remote, Packet *packet)
 {
 	Packet *response = packet_create_response(packet);
 	DWORD res = ERROR_SUCCESS, channelId, written = 0;
-	Tlv channelData;
+	//Tlv channelData;
 	Channel * channel = NULL;
 
 	do
@@ -917,9 +917,12 @@ DWORD remote_request_core_channel_write(Remote *remote, Packet *packet)
 		}
 
 		lock_acquire( channel->lock );
+		DWORD length;
+		BYTE *buffer;
+
 
 		// Get the channel data buffer
-		if ((res = packet_get_tlv(packet, TLV_TYPE_CHANNEL_DATA, &channelData)) != ERROR_SUCCESS)
+		if ((buffer = packet_get_tlv_value_raw(packet, TLV_TYPE_CHANNEL_DATA, &length)) == NULL)
 			break;
 
 		// Handle the write operation differently based on the class of channel
@@ -927,7 +930,7 @@ DWORD remote_request_core_channel_write(Remote *remote, Packet *packet)
 		{
 			// If it's buffered, write it to the local buffer cache
 			case CHANNEL_CLASS_BUFFERED:
-				res = channel_write_to_buffered(channel, channelData.buffer, channelData.header.length, (PULONG)&written);
+				res = channel_write_to_buffered(channel, buffer, length, (PULONG)&written);
 				break;
 			// If it's non-buffered, call the native write operation handler if
 			// one is implemented
@@ -936,7 +939,7 @@ DWORD remote_request_core_channel_write(Remote *remote, Packet *packet)
 					NativeChannelOps *ops = (NativeChannelOps *)&channel->ops;
 					if (ops->write)
 						res = ops->write(channel, packet, ops->context, 
-								channelData.buffer, channelData.header.length, 
+								buffer, length, 
 								&written);
 					else
 						res = ERROR_NOT_SUPPORTED;

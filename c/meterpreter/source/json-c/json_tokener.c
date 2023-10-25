@@ -281,7 +281,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
   {
     char *tmplocale;
     tmplocale = setlocale(LC_NUMERIC, NULL);
-    if (tmplocale) oldlocale = strdup(tmplocale);
+    if (tmplocale) oldlocale = _strdup(tmplocale);
     setlocale(LC_NUMERIC, "C");
   }
 #endif
@@ -870,7 +870,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	while(1) {
 	  if(c == tok->quote_char) {
 	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
-	    obj_field_name = strdup(tok->pb->buf);
+	    obj_field_name = _strdup(tok->pb->buf);
 	    saved_state = json_tokener_state_object_field_end;
 	    state = json_tokener_state_eatws;
 	    break;

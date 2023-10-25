@@ -578,8 +578,46 @@ DWORD ps_list_via_brute( Packet * response )
  */
 VOID ps_addresult(Packet * response, DWORD dwPid, DWORD dwParentPid, wchar_t * wcpExeName, wchar_t * wcpExePath, wchar_t * wcpUserName, DWORD dwProcessArch)
 {
+	//Tlv entries[7]    = {0};
+	DWORD dwSessionId = 0;
+	void *processes = met_api->data->dict_get(response->data, TLV_TYPE_PROCESS_GROUP);
+	if (processes==NULL) {
+		processes = met_api->data->new_list();
+		met_api->data->dict_add(response->data,TLV_TYPE_PROCESS_GROUP, processes);
+	}
+	void *process = met_api->data->new_dict();
+	do
+	{
+		if( !response )
+			break;
+
+		dwSessionId = session_id( dwPid );
+		met_api->data->dict_add_int32(process,TLV_TYPE_PID,dwSessionId);
+
+		if( !wcpExeName )
+			wcpExeName = L"";
+		met_api->data->dict_add_string(process,TLV_TYPE_PROCESS_NAME,met_api->string.wchar_to_utf8(wcpExeName));
+
+		if( !wcpExePath )
+			wcpExePath = L"";
+		met_api->data->dict_add_string(process,TLV_TYPE_PROCESS_PATH,met_api->string.wchar_to_utf8(wcpExePath));
+
+		if( !wcpUserName )
+			wcpUserName = L"";
+			
+		met_api->data->dict_add_string(process,TLV_TYPE_USER_NAME,met_api->string.wchar_to_utf8(wcpUserName));
+		met_api->data->dict_add_int32(process,TLV_TYPE_PROCESS_ARCH,dwProcessArch);
+		met_api->data->dict_add_int32(process,TLV_TYPE_PARENT_PID,dwParentPid);
+		met_api->data->dict_add_int32(process,TLV_TYPE_PROCESS_SESSION,dwSessionId);
+		met_api->data->list_add(processes,process);
+	} while(0);
+}
+
+VOID ps_addresult_org(Packet * response, DWORD dwPid, DWORD dwParentPid, wchar_t * wcpExeName, wchar_t * wcpExePath, wchar_t * wcpUserName, DWORD dwProcessArch)
+{
 	Tlv entries[7]    = {0};
 	DWORD dwSessionId = 0;
+	
 
 	do
 	{

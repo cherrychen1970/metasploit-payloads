@@ -281,7 +281,7 @@ BOOL command_process_inline(Command *command, Remote *remote, Packet *packet)
 {
 	DWORD result;
 	BOOL serverContinue = TRUE;
-	Tlv requestIdTlv;
+	//Tlv requestIdTlv;
 	PCHAR requestId;
 	PacketTlvType packetTlvType;
 	UINT commandId = 0;
@@ -345,10 +345,8 @@ BOOL command_process_inline(Command *command, Remote *remote, Packet *packet)
 			dprintf("[COMMAND] Calling completion handlers...");
 
 			// Get the request identifier if the packet has one.
-			if (packet_get_tlv_string(packet, TLV_TYPE_REQUEST_ID, &requestIdTlv) == ERROR_SUCCESS)
-			{
-				requestId = (PCHAR)requestIdTlv.buffer;
-			}
+			requestId = packet_get_tlv_value_string(packet, TLV_TYPE_REQUEST_ID);
+
 
 			// Finally, call completion routines for the provided identifier
 			if (((packetTlvType == PACKET_TLV_TYPE_RESPONSE) || (packetTlvType == PACKET_TLV_TYPE_PLAIN_RESPONSE)) && requestId)
@@ -585,8 +583,9 @@ DWORD command_validate_arguments(Command *command, Packet *packet)
 		dispatcher = &command->response;
 	else
 		dispatcher = &command->request;
-
+#if 0 //later
 	// Enumerate the arguments, validating the meta types of each
+
 	for (commandIndex = 0, packetIndex = 0;
 		((packet_enum_tlv(packet, packetIndex, TLV_TYPE_ANY, &current) == ERROR_SUCCESS)
 		&& (res == ERROR_SUCCESS));
@@ -627,5 +626,6 @@ DWORD command_validate_arguments(Command *command, Packet *packet)
 			break;
 	}
 
+#endif
 	return res;
 }

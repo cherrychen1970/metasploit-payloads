@@ -3,6 +3,8 @@
 #include "remote_thread.h"
 #include "base_inject.h"
 
+extern DataApi data_api;
+
 MetApi api_instance = {
 	// PacketApi
 	{
@@ -22,11 +24,16 @@ MetApi api_instance = {
 		packet_add_tlv_wstring_len,
 		packet_add_tlvs,
 		packet_call_completion_handlers,
+
+		// TODO remove later
 		packet_enum_tlv,
+#if 0
+
 		packet_get_tlv,
 		packet_get_tlv_group_entry,
 		packet_get_tlv_string,
 		packet_is_tlv_null_terminated,
+#endif
 		packet_remove_completion_handler,
 		packet_transmit,
 		packet_transmit_empty_response,
@@ -37,7 +44,9 @@ MetApi api_instance = {
 		packet_create_response,
 		packet_get_type,
 		packet_get_tlv_value_qword,
+#if 0
 		packet_get_tlv_meta,
+#endif
 		packet_get_tlv_value_uint,
 		packet_get_tlv_uint,
 		packet_destroy,
@@ -147,6 +156,7 @@ MetApi api_instance = {
 		list_shift,
 		list_destroy,
 	},
+	&data_api
 };
 
-MetApi* met_api = &api_instance;
+MetApi *met_api = &api_instance;

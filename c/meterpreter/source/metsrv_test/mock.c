@@ -1,27 +1,29 @@
-#include "metsrv.h"
-#include "json.h"
+#include "common.h"
+#include "remote_dispatch.h"
+#include "base.h"
+#include "core.h"
+#include "packet.h"
+#include "remote.h"
+#include "pivot_tree.h"
+#include "channel.h"
+#include "scheduler.h"
+#include "thread.h"
+#include "unicode.h"
+#include "list.h"
+#include "zlib.h"
 
-#define PRINT_LINE             dprintf("%d",__LINE__)
+#include "common_metapi.h"
+
+// base.c
+extern Command *extensionCommands;
+
 // from server_setup.c
 DWORD server_sessionid();
-Remote *create_remote();
- 
-int main(int argc, char *argv[])
-{
-    Remote *remote = create_remote();
-    Packet *packet = packet_create(PACKET_TLV_TYPE_PLAIN_REQUEST, COMMAND_ID_CORE_MACHINE_ID);
 
-    const char *json = json_to_string(packet->handle);
-    dprintf("here %s",json);
-    UINT commandId = packet_get_tlv_value_uint(packet, TLV_TYPE_COMMAND_ID);
-    dprintf("here %x: %x",COMMAND_ID_CORE_MACHINE_ID, commandId);
-    command_handle(remote, packet);
-    getchar();
-    return 0;
-}
-
-// for simple connection without config.
-Remote *create_remote()
+// metsrv.c
+int current_unix_timestamp(void);
+// for testing without connecting metasploit
+Remote *create_mock_remote()
 {
     THREAD *serverThread = NULL;
     Remote *remote = NULL;
@@ -80,10 +82,10 @@ Remote *create_remote()
             dprintf("[SERVER] Registering dispatch routines...");
             register_dispatch_routines();
 
-#if 0 // test later
-			HMODULE hLibrary = LoadLibraryA("stdapi\\ext_server_stdapi.x64.dll");
-			dprintf("%x",hLibrary);
-			load_extension(hLibrary, FALSE, remote, NULL, extensionCommands);
+#if 1 // test later
+            HMODULE hLibrary = LoadLibraryA("stdapi\\ext_server_stdapi.x64.dll");
+            dprintf("%x", hLibrary);
+            load_extension(hLibrary, FALSE, remote, NULL, extensionCommands);
 #endif
 
             // Store our process token
@@ -112,7 +114,7 @@ Remote *create_remote()
             remote->orig_desktop_name = _strdup(desktopName);
             remote->curr_desktop_name = _strdup(desktopName);
             remote->sess_start_time = current_unix_timestamp();
-            dprintf("%d",__LINE__);
+            dprintf("%d", __LINE__);
 
             return remote;
         } while (0);

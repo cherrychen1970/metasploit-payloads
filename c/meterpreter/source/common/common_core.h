@@ -206,6 +206,7 @@ typedef struct
 	BYTE session_guid[sizeof(GUID)];
 	DWORD enc_flags;
 	DWORD length;
+	// packettlvtype
 	DWORD type;
 } PacketHeader;
 
@@ -216,7 +217,7 @@ typedef struct _Packet
 
 	PUCHAR    payload;
 	ULONG     payloadLength;
-	PVOID 	  handle;
+	PVOID 	  data;
 
 	LIST *    decompressed_buffers;
 
@@ -225,6 +226,11 @@ typedef struct _Packet
 	///! @brief Pointer to the associated packet (response/request)
 	struct _Packet* partner;
 } Packet;
+
+typedef struct _PayloadObject
+{
+	struct arraylist *children;
+} PayloadObject;
 
 typedef struct _DECOMPRESSED_BUFFER
 {

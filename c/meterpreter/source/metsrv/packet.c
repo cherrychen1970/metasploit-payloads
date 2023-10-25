@@ -11,7 +11,9 @@
 #include "json.h"
 #include <winhttp.h>
 
-#define PRINT_LINE dprintf("%d", __LINE__)
+extern DataApi data_api;
+
+static DWORD group_add_tlv(void *obj, Tlv *tlv);
 
 DWORD packet_find_tlv_buf(Packet *packet, PUCHAR payload, DWORD payloadLength, DWORD index, TlvType type, Tlv *tlv);
 
@@ -51,15 +53,18 @@ Packet *packet_create(PacketTlvType type, UINT commandId)
 
         memset(packet, 0, sizeof(Packet));
 
+#if 1
         // Initialize the header length and message type
         packet->header.length = htonl(sizeof(TlvHeader));
         packet->header.type = htonl((DWORD)type);
-
+#else
+        packet->header.length = 0;
+#endif
         // Initialize the payload to be blank
         packet->payload = NULL;
         packet->payloadLength = 0;
 
-        packet->handle = json_object_new_object();
+        packet->data = data_api.new_dict();
 
         if (commandId > 0 && packet_add_tlv_uint(packet, TLV_TYPE_COMMAND_ID, commandId) != ERROR_SUCCESS)
         {
@@ -150,9 +155,12 @@ Packet *packet_create_empty()
  */
 DWORD packet_add_group(Packet *packet, TlvType type, Packet *groupPacket)
 {
-    DWORD result = packet_add_tlv_raw(packet, type, groupPacket->payload, groupPacket->payloadLength);
+    int result = data_api.dict_add(packet->data, type, groupPacket->data);
+
+    // DWORD result = packet_add_tlv_raw(packet, type, groupPacket->payload, groupPacket->payloadLength);
     if (result == ERROR_SUCCESS)
     {
+        //
         packet_destroy(groupPacket);
         return ERROR_SUCCESS;
     }
@@ -170,7 +178,8 @@ DWORD packet_add_group(Packet *packet, TlvType type, Packet *groupPacket)
 Packet *packet_create_response(Packet *request)
 {
     Packet *response = NULL;
-    Tlv requestId;
+    // Tlv requestId;
+    PCHAR requestId;
     BOOL success = FALSE;
     PacketTlvType responseType;
 
@@ -201,14 +210,15 @@ Packet *packet_create_response(Packet *request)
         }
 
         // Get the request TLV's request identifier
-        if (packet_get_tlv_string(request, TLV_TYPE_REQUEST_ID, &requestId) != ERROR_SUCCESS)
+        requestId = packet_get_tlv_value_string(request, TLV_TYPE_REQUEST_ID);
+        if (requestId == NULL)
         {
             vdprintf("[PKT] Can't find request ID");
             break;
         }
 
         // Add the request identifier to the packet
-        packet_add_tlv_string(response, TLV_TYPE_REQUEST_ID, (PCHAR)requestId.buffer);
+        packet_add_tlv_string(response, TLV_TYPE_REQUEST_ID, requestId);
 
         // If the packet that is being handled is considered local, then we
         // associate the response with the request so that it can be handled
@@ -396,7 +406,23 @@ DWORD packet_add_tlv_bool(Packet *packet, TlvType type, BOOL val)
  * @retval ERROR_SUCCESS The operation completed successfully.
  * @retval ERROR_NOT_ENOUGH_MEMORY Insufficient memory available.
  */
+// this is nested object
 DWORD packet_add_tlv_group(Packet *packet, TlvType type, Tlv *entries, DWORD numEntries)
+{
+#if 1
+    int index;
+    void *group = data_api.new_dict();
+    for (index = 0; index < numEntries; index++)
+    {
+        group_add_tlv(group, &entries[index]);
+    }
+
+    data_api.dict_add(packet->data, type, group);
+#endif
+    return ERROR_SUCCESS;
+}
+
+DWORD packet_add_tlv_group_notused(Packet *packet, TlvType type, Tlv *entries, DWORD numEntries)
 {
     DWORD totalSize = 0,
           offset = 0,
@@ -557,25 +583,56 @@ DWORD packet_add_tlv_raw_compressed(Packet *packet, TlvType type, LPVOID buf, DW
 DWORD packet_add_tlv_raw(Packet *packet, TlvType type, LPVOID buf, DWORD length)
 {
     TlvMetaType metaType = TLV_META_TYPE_MASK(type);
-    char key[4];
-    _itoa(type, key, 16);
 
     switch (metaType)
     {
     case TLV_META_TYPE_STRING:
-        json_add_str(packet->handle, key, buf);
+        data_api.dict_add_string(packet->data, type, buf);
         return ERROR_SUCCESS;
     case TLV_META_TYPE_UINT:
-        if (json_add_int32(packet->handle, key, *(UINT32 *)buf) == -1)
+        if (data_api.dict_add_int32(packet->data, type, *(UINT32 *)buf) == -1)
             return ERROR_NOT_FOUND;
         return ERROR_SUCCESS;
     case TLV_META_TYPE_BOOL:
-        if (json_add_bool(packet->handle, key, *(BOOL *)buf) == -1)
+        if (data_api.dict_add_bool(packet->data, type, *(BOOL *)buf) == -1)
             return ERROR_NOT_FOUND;
         return ERROR_SUCCESS;
     case TLV_META_TYPE_RAW:
-        // not supported
-        return ERROR_NOT_FOUND;
+        // not supported. just ignore now.
+        // data_api.dict_add_null(packet->data,key);
+        return ERROR_SUCCESS;
+    }
+    return ERROR_NOT_FOUND;
+}
+
+DWORD packet_add_tlv(Packet *packet, Tlv *tlv)
+{
+    return group_add_tlv(packet->data, tlv);
+}
+
+static DWORD group_add_tlv(void *obj, Tlv *tlv)
+{
+    TlvMetaType metaType = TLV_META_TYPE_MASK(tlv->header.type);
+    int key = tlv->header.type;
+    PUCHAR buf = tlv->buffer;
+
+    switch (metaType)
+    {
+    case TLV_META_TYPE_STRING:
+        data_api.dict_add_string(obj, key, buf);
+        return ERROR_SUCCESS;
+    case TLV_META_TYPE_UINT:
+        if (data_api.dict_add_int32(obj, key, *(UINT32 *)buf) == -1)
+            return ERROR_NOT_FOUND;
+        return ERROR_SUCCESS;
+    case TLV_META_TYPE_BOOL:
+        if (data_api.dict_add_bool(obj, key, *(BOOL *)buf) == -1)
+            return ERROR_NOT_FOUND;
+        return ERROR_SUCCESS;
+    case TLV_META_TYPE_RAW:
+        // not supported. just ignore now.
+        // data_api.dict_add_null(packet->data,key);
+        return ERROR_SUCCESS;
     }
     return ERROR_NOT_FOUND;
 }
@@ -671,27 +728,25 @@ TlvMetaType packet_get_tlv_meta(Packet *packet, Tlv *tlv)
  * @retval ERROR_SUCCESS The operation completed successfully.
  * @retval ERROR_NOT_FOUND Unable to find the TLV.
  */
-DWORD packet_get_tlv(Packet *packet, TlvType type, Tlv *tlv)
+DWORD packet_get_tlv_notused(Packet *packet, TlvType type, Tlv *tlv)
 {
     TlvMetaType metaType = TLV_META_TYPE_MASK(type);
-    char key[4];
-    _itoa(type, key, 16);
     tlv->header.type = type;
 
     switch (metaType)
     {
     case TLV_META_TYPE_STRING:
-        json_get_str(packet->handle, key, &tlv->buffer);
+        data_api.dict_get_string(packet->data, type, &tlv->buffer);
         tlv->header.length = strlen(tlv->buffer);
         return ERROR_SUCCESS;
     case TLV_META_TYPE_UINT:
-        if (json_get_int32(packet->handle, key, &tlv->buffer) == -1)
+        if (data_api.dict_get_int32(packet->data, type, &tlv->buffer) == -1)
             return ERROR_NOT_FOUND;
         tlv->header.length = sizeof(UINT);
         return ERROR_SUCCESS;
     case TLV_META_TYPE_BOOL:
         bool val;
-        if (json_get_bool(packet->handle, key, &val) == -1)
+        if (data_api.dict_get_bool(packet->data, type, &val) == -1)
             return ERROR_NOT_FOUND;
         tlv->buffer = val;
         tlv->header.length = 1;
@@ -715,8 +770,10 @@ DWORD packet_get_tlv(Packet *packet, TlvType type, Tlv *tlv)
  * @retval ERROR_NOT_FOUND Unable to find the TLV or the string
  *                         value is not NULL-terminated.
  */
-DWORD packet_get_tlv_string(Packet *packet, TlvType type, Tlv *tlv)
+#if 0
+DWORD packet_get_tlv_string_notused(Packet *packet, TlvType type, Tlv *tlv)
 {
+
     DWORD res;
 
     if ((res = packet_get_tlv(packet, type, tlv)) == ERROR_SUCCESS)
@@ -726,7 +783,7 @@ DWORD packet_get_tlv_string(Packet *packet, TlvType type, Tlv *tlv)
 
     return res;
 }
-
+#endif
 /*!
  * @brief Get a TLV of a given type from a group TLV in the packet.
  * @param packet Pointer to the packet to get the TLV from.
@@ -753,7 +810,8 @@ DWORD packet_get_tlv_group_entry(Packet *packet, Tlv *group, TlvType type, Tlv *
  */
 DWORD packet_enum_tlv(Packet *packet, DWORD index, TlvType type, Tlv *tlv)
 {
-    return packet_find_tlv_buf(packet, packet->payload, packet->payloadLength, index, type, tlv);
+    return ERROR_NOT_FOUND;
+    //return packet_find_tlv_buf(packet, packet->payload, packet->payloadLength, index, type, tlv);
 }
 
 /*!
@@ -766,14 +824,16 @@ DWORD packet_enum_tlv(Packet *packet, DWORD index, TlvType type, Tlv *tlv)
  */
 PCHAR packet_get_tlv_value_string(Packet *packet, TlvType type)
 {
-    Tlv stringTlv;
     PCHAR string = NULL;
 
+    data_api.dict_get_string(packet->data, type, &string);
+#if 0
+    //Tlv stringTlv;
     if (packet_get_tlv_string(packet, type, &stringTlv) == ERROR_SUCCESS)
     {
         string = (PCHAR)stringTlv.buffer;
     }
-
+#endif
     return string;
 }
 
@@ -832,11 +892,9 @@ wchar_t *packet_get_tlv_value_wstring(Packet *packet, TlvType type)
  */
 BOOL packet_get_tlv_uint(Packet *packet, TlvType type, UINT *output)
 {
-    char key[4];
-    _itoa(type, key, 16);
     UINT val;
 
-    if (json_get_int32(packet->handle, key, &val) == -1)
+    if (data_api.dict_get_int32(packet->data, type, &val) == -1)
         return FALSE;
 #if 0
     Tlv uintTlv;
@@ -854,7 +912,6 @@ BOOL packet_get_tlv_uint(Packet *packet, TlvType type, UINT *output)
     *output = ntohl(*(LPDWORD)uintTlv.buffer);
 #endif
     *output = ntohl(val);
-    PRINT_LINE;
     return TRUE;
 }
 
@@ -883,17 +940,9 @@ UINT packet_get_tlv_value_uint(Packet *packet, TlvType type)
  */
 BYTE *packet_get_tlv_value_raw(Packet *packet, TlvType type, DWORD *length)
 {
-    return NULL;
-
-    Tlv tlv;
-
-    if (packet_get_tlv(packet, type, &tlv) != ERROR_SUCCESS)
-    {
-        return NULL;
-    }
-
-    *length = tlv.header.length;
-    return tlv.buffer;
+#if 1
+    return data_api.dict_get_binary(packet->data, type,length);
+#endif
 }
 
 /*!
@@ -904,16 +953,14 @@ BYTE *packet_get_tlv_value_raw(Packet *packet, TlvType type, DWORD *length)
  * @todo On failure, 0 is returned. We need to make sure this is the right
  *       thing to do because 0 might also be a valid value.
  */
-QWORD packet_get_tlv_value_qword(Packet *packet, TlvType type)
+UINT64 packet_get_tlv_value_qword(Packet *packet, TlvType type)
 {
-    Tlv qwordTlv;
+    UINT64 val;
 
-    if ((packet_get_tlv(packet, type, &qwordTlv) != ERROR_SUCCESS) || (qwordTlv.header.length < sizeof(QWORD)))
-    {
-        return 0;
-    }
+    if (data_api.dict_get_int64(packet->data, type, &val) == -1)
+        return FALSE;
 
-    return ntohq(*(QWORD *)qwordTlv.buffer);
+    return ntohq(*(UINT64 *)val);
 }
 
 /*!
@@ -927,10 +974,8 @@ QWORD packet_get_tlv_value_qword(Packet *packet, TlvType type)
 BOOL packet_get_tlv_value_bool(Packet *packet, TlvType type)
 {
     BOOL val = FALSE;
-    char key[4];
-    _itoa(type, key, 16);
 
-    if (json_get_bool(packet->handle, key, &val) == -1)
+    if (data_api.dict_get_bool(packet->data, type, &val) == -1)
         return FALSE;
 #if 0
     Tlv boolTlv;
@@ -1303,10 +1348,10 @@ DWORD packet_transmit_response(DWORD result, Remote *remote, Packet *response)
 
 DWORD packet_add_request_id(Packet *packet)
 {
-    Tlv requestId = {0};
+    PCHAR requestId;
 
     // If the packet does not already have a request identifier, create one for it
-    if (packet_get_tlv_string(packet, TLV_TYPE_REQUEST_ID, &requestId) != ERROR_SUCCESS)
+    if (requestId = packet_get_tlv_value_string(packet, TLV_TYPE_REQUEST_ID) == NULL)
     {
         DWORD index;
         CHAR rid[32];
@@ -1326,8 +1371,9 @@ DWORD packet_add_request_id(Packet *packet)
 // test
 DWORD packet_transmit(Remote *remote, Packet *packet, PacketRequestCompletion *completion)
 {
-    const char* json=json_to_string(packet->handle);
-    dprintf("%s",json);
+    const char *text = data_api.to_string(packet->data);
+    printf("%s", text);
+    return ERROR_SUCCESS;
 }
 
 DWORD packet_transmit_org(Remote *remote, Packet *packet, PacketRequestCompletion *completion)
@@ -1338,7 +1384,7 @@ DWORD packet_transmit_org(Remote *remote, Packet *packet, PacketRequestCompletio
         return ERROR_SUCCESS;
     }
 
-    Tlv requestId;
+    PCHAR requestId;
     DWORD res;
     BYTE *encryptedPacket = NULL;
     DWORD encryptedPacketLength = 0;
@@ -1353,9 +1399,9 @@ DWORD packet_transmit_org(Remote *remote, Packet *packet, PacketRequestCompletio
     {
         // If a completion routine was supplied and the packet has a request
         // identifier, insert the completion routine into the list
-        if ((completion) && (packet_get_tlv_string(packet, TLV_TYPE_REQUEST_ID, &requestId) == ERROR_SUCCESS))
+        if ((completion) && (requestId = packet_get_tlv_value_string(packet, TLV_TYPE_REQUEST_ID) != NULL))
         {
-            packet_add_completion_handler((LPCSTR)requestId.buffer, completion);
+            packet_add_completion_handler((LPCSTR)requestId, completion);
         }
 
         encrypt_packet(remote, packet, &encryptedPacket, &encryptedPacketLength);

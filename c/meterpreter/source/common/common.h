@@ -95,6 +95,7 @@ typedef struct ___u128 {
 /*! @brief Close a handle if not already closed and set the handle to NULL. */
 #define CLOSE_HANDLE( h )          if( h ) { DWORD dwHandleFlags; if(GetHandleInformation( h , &dwHandleFlags)) CloseHandle( h ); h = NULL; }
 
+#ifdef DEBUGTRACE
 /*!
  * @brief Output a debug string to the debug console.
  * @details The function emits debug strings via `OutputDebugStringA`, hence all messages can be viewed
@@ -117,6 +118,7 @@ static _inline void real_dprintf(const char *file, int line, char *format, ...)
 #endif
 	va_end(args);
 }
+#endif
 
 #include "common_base.h"
 #include "common_core.h"
