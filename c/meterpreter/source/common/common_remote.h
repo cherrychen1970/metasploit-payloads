@@ -30,6 +30,8 @@ typedef DWORD(*PTransportGetConfigSize)(Transport* transport);
 typedef void(*PTransportSetHandle)(Transport* transport, UINT_PTR handle);
 typedef void(*PTransportReset)(Transport* transport, BOOL shuttingDown);
 typedef DWORD(*PTransportInit)(Transport* transport);
+typedef DWORD(*PTransportStreamRead)(Transport* transport, PCHAR buffer, int length);
+typedef DWORD(*PTransportStreamWrite)(Transport* transport, PCHAR buffer, int length);
 typedef DWORD(*PTransportDeinit)(Transport* transport);
 typedef void(*PTransportDestroy)(Transport* transport);
 typedef DWORD(*PTransportGetMigrateContext)(Transport* transport, DWORD targetProcessId, HANDLE targetProcessHandle, LPDWORD contextSize, LPBYTE* contextBuffer);
@@ -109,6 +111,8 @@ typedef struct _Transport
 	PTransportInit transport_init;        ///! Initialises the transport.
 	PTransportDeinit transport_deinit;    ///! Deinitialises the transport.
 	PTransportDestroy transport_destroy;  ///! Destroy the transport.
+	PTransportStreamRead transport_stream_read;
+	PTransportStreamWrite transport_stream_write;
 	PServerDispatch server_dispatch;      ///! Transport dispatch function.
 	PPacketTransmit packet_transmit;      ///! Transmits a packet over the transport.
 	PTransportGetMigrateContext get_migrate_context; ///! Creates a migrate context that is transport-specific.

